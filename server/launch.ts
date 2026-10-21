@@ -2,6 +2,7 @@ import type { PaseoApi } from "@getpaseo/client";
 import type { BoardAction, Item, Repo } from "../shared/contracts";
 import { actionApplies, renderTemplate } from "../shared/actions";
 import { ACTION_LABEL, INTAKE_LABEL, ITEM_LABEL, normalizePath } from "../shared/model";
+import { prepareUploads, type IncomingFile, type PreparedUploads } from "./uploads";
 
 interface ProfileLike {
   id: string;
@@ -70,9 +71,10 @@ interface StartInput {
   title: string;
   prompt: string;
   labels: Record<string, string>;
+  uploads?: PreparedUploads;
 }
 
-async function startAgent(paseo: PaseoApi, { path, projectId, profile, title, prompt, labels }: StartInput) {
+async function startAgent(paseo: PaseoApi, { path, projectId, profile, title, prompt, labels, uploads }: StartInput) {
   const workspace = await paseo.workspaces.create({
     title,
     source: { kind: "directory", path, ...(projectId ? { projectId } : {}) },
@@ -87,6 +89,8 @@ async function startAgent(paseo: PaseoApi, { path, projectId, profile, title, pr
     title,
     labels,
     prompt,
+    ...(uploads?.images.length ? { images: uploads.images } : {}),
+    ...(uploads?.attachments.length ? { attachments: uploads.attachments } : {}),
   });
   return { workspaceId: workspace.id, agentId: agent.id ?? null, prompt };
 }
@@ -101,6 +105,7 @@ function intakeTitle(description: string): string {
 
 interface IntakeInput {
   description: string;
+  attachments: readonly IncomingFile[];
   profileId: string;
   promptTemplate: string;
   rootPath: string | null;
@@ -124,5 +129,6 @@ export async function launchIntake(paseo: PaseoApi, input: IntakeInput) {
     title: intakeTitle(input.description),
     prompt,
     labels: { [INTAKE_LABEL]: "1" },
+    uploads: await prepareUploads(input.attachments),
   });
 }

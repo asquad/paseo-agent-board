@@ -365,9 +365,18 @@ export const setNoteRpc = defineRpc({
 
 export const launchIntakeRpc = defineRpc({
   name: "scratch.launch",
-  input: z.object({ description: z.string().min(1) }),
+  input: z.object({
+    description: z.string().min(1),
+    attachments: z
+      .array(z.object({ name: z.string(), mimeType: z.string(), data: z.string() }))
+      .max(20)
+      .default([]),
+  }),
   output: z.object({ workspaceId: z.string(), agentId: z.string().nullable(), prompt: z.string() }),
 });
+
+export const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+export const MAX_ATTACHMENTS_TOTAL_BYTES = 25 * 1024 * 1024;
 
 export function itemKey(repo: string, number: number): string {
   return `${repo.toLowerCase()}#${number}`;

@@ -122,12 +122,13 @@ export default function contribute(server: PluginServerContext) {
   });
   server.handle(requestIntakeChangesRpc, ({ intakeAgentId, text }, { paseo }) => requestIntakeChanges(paseo, intakeAgentId, text));
 
-  server.handle(launchIntakeRpc, async ({ description }, { paseo }) => {
+  server.handle(launchIntakeRpc, async ({ description, attachments }, { paseo }) => {
     const { rootPath, title, deliverEnabled, intakeProfile, intakePrompt } = await values();
     if (!deliverEnabled) throw new Error("The paseo-dev-team integration is off in the board settings.");
     const board = await listRepos(paseo, rootPath, title);
     return launchIntake(paseo, {
       description,
+      attachments,
       profileId: intakeProfile.trim(),
       promptTemplate: intakePrompt,
       rootPath: board.rootPath,
