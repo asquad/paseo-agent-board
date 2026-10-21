@@ -75,6 +75,7 @@ export const FilterSchema = z.object({
   statuses: z.array(z.string()).default([]),
   labels: z.array(z.string()).default([]),
   authors: z.array(z.string()).default([]),
+  bases: z.array(z.string()).default([]),
   text: z.string().default(""),
 });
 export type Filter = z.infer<typeof FilterSchema>;
@@ -84,8 +85,8 @@ export const viewSettings = defineSettings({
   scope: "host",
   version: 1,
   schema: z.object({
-    work: FilterSchema.default({ repos: [], kinds: [], statuses: [], labels: [], authors: [], text: "" }),
-    items: FilterSchema.default({ repos: [], kinds: [], statuses: [], labels: [], authors: [], text: "" }),
+    work: FilterSchema.default({ repos: [], kinds: [], statuses: [], labels: [], authors: [], bases: [], text: "" }),
+    items: FilterSchema.default({ repos: [], kinds: [], statuses: [], labels: [], authors: [], bases: [], text: "" }),
     itemsSort: z.object({ column: z.enum(["updated", "title", "number"]), descending: z.boolean() }).default({
       column: "updated",
       descending: true,
@@ -202,6 +203,7 @@ export const ItemSchema = z.object({
   labels: z.array(z.string()).default([]),
   labelColors: z.record(z.string(), z.string()).default({}),
   state: z.enum(["open", "closed", "merged"]).default("open"),
+  baseRef: z.string().nullable().default(null),
 });
 export type Item = z.infer<typeof ItemSchema>;
 
@@ -213,6 +215,7 @@ export const searchItemsRpc = defineRpc({
     kind: z.enum(["pr", "issue", "all"]),
     labels: z.array(z.string()).default([]),
     author: z.string().nullable().default(null),
+    bases: z.array(z.string()).default([]),
   }),
   output: z.object({ items: z.array(ItemSchema), repos: z.array(z.string()) }),
 });

@@ -12,7 +12,8 @@ export interface FilterOption {
 }
 
 export interface FilterField {
-  key: "repos" | "kinds" | "statuses" | "labels" | "authors";
+  key: "repos" | "kinds" | "statuses" | "labels" | "authors" | "bases";
+  allowCustom?: boolean;
   label: string;
   options: readonly FilterOption[];
 }
@@ -42,16 +43,18 @@ export function Picker({
   styles: Styles;
 }) {
   const [search, setSearch] = useState("");
-  const options = field.options.filter((option) => option.label.toLowerCase().includes(search.toLowerCase()));
+  const extra = selected.filter((value) => !field.options.some((option) => option.value === value)).map((value): FilterOption => ({ value, label: value }));
+  const options: FilterOption[] = [...field.options, ...extra].filter((option) => option.label.toLowerCase().includes(search.toLowerCase()));
+  const custom = field.allowCustom && search.trim() && !options.some((option) => option.value === search.trim()) ? search.trim() : null;
   const toggle = (value: string) =>
     onChange(selected.includes(value) ? selected.filter((current) => current !== value) : [...selected, value]);
   return (
     <Modal title={field.label} open onOpenChange={(open) => (open ? undefined : onClose())}>
       <Modal.Content scrollable={false} style={{ flex: 1 }} contentContainerStyle={{ flex: 1, padding: 16, gap: 10 }}>
-        {field.options.length > 8 ? (
+        {field.options.length > 8 || field.allowCustom ? (
           <TextInput
             accessibilityLabel={`Поиск: ${field.label}`}
-            placeholder="Поиск"
+            placeholder={field.allowCustom ? "Поиск или своё значение" : "Поиск"}
             placeholderTextColor={theme.colors.foregroundMuted}
             value={search}
             onChangeText={setSearch}
@@ -59,7 +62,21 @@ export function Picker({
           />
         ) : null}
         <ScrollView style={{ flex: 1, minHeight: 120 }} contentContainerStyle={{ gap: 2 }}>
-          {options.length ? null : <Text style={styles.muted}>Нет вариантов.</Text>}
+          {custom ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Добавить ${custom}`}
+              onPress={() => {
+                onChange([...selected, custom]);
+                setSearch("");
+              }}
+              style={styles.row}
+            >
+              <Icon name="Plus" size={16} color={theme.colors.accent} />
+              <Text style={[styles.text, { flex: 1 }]}>Добавить «{custom}»</Text>
+            </Pressable>
+          ) : null}
+          {options.length || custom ? null : <Text style={styles.muted}>Нет вариантов.</Text>}
           {options.map((option) => {
             const checked = selected.includes(option.value);
             return (
@@ -128,7 +145,7 @@ export function FilterBar({ filter, fields, onChange, theme, styles, placeholder
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Сбросить все фильтры"
-            onPress={() => onChange({ repos: [], kinds: [], statuses: [], labels: [], authors: [], text: "" })}
+            onPress={() => onChange({ repos: [], kinds: [], statuses: [], labels: [], authors: [], bases: [], text: "" })}
             style={styles.chip}
           >
             <Text style={styles.chipText}>Сбросить</Text>

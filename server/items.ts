@@ -31,9 +31,10 @@ interface SearchOptions {
   query: string;
   labels: readonly string[];
   author: string | null;
+  base?: string | null;
 }
 
-async function search(kind: "pr" | "issue", repos: readonly string[], { query, labels, author }: SearchOptions): Promise<Item[]> {
+async function search(kind: "pr" | "issue", repos: readonly string[], { query, labels, author, base }: SearchOptions): Promise<Item[]> {
   const fields =
     kind === "pr"
       ? "number,title,url,updatedAt,isDraft,author,labels,repository"
@@ -43,6 +44,7 @@ async function search(kind: "pr" | "issue", repos: readonly string[], { query, l
   for (const repo of repos) args.push("--repo", repo);
   for (const label of labels) args.push("--label", label);
   if (author) args.push("--author", author);
+  if (base && kind === "pr") args.push("--base", base);
   args.push("--state", "open", "--sort", "updated", "--limit", "100", "--json", fields);
   const rows = JSON.parse(await gh(args)) as SearchRow[];
   return rows.map((row) => ({
@@ -57,16 +59,23 @@ async function search(kind: "pr" | "issue", repos: readonly string[], { query, l
     labels: (row.labels ?? []).map((label) => label.name),
     labelColors: Object.fromEntries((row.labels ?? []).flatMap((label) => (label.color ? [[label.name, label.color]] : []))),
     state: "open" as const,
+    baseRef: kind === "pr" ? (base ?? null) : null,
   }));
 }
 
 export async function searchItems(
   repos: readonly string[],
   kind: "pr" | "issue" | "all",
-  options: SearchOptions,
+  options: SearchOptions & { bases?: readonly string[] },
 ): Promise<Item[]> {
   const scope = repos.slice(0, MAX_REPOS);
   if (!scope.length) return [];
+  const bases = options.bases ?? [];
+  if (bases.length) {
+    if (kind === "issue") return [];
+    const results = await Promise.all(bases.map((base) => search("pr", scope, { ...options, base })));
+    return results.flat().sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+  }
   const kinds: ("pr" | "issue")[] = kind === "all" ? ["pr", "issue"] : [kind];
   const results = await Promise.all(kinds.map((current) => search(current, scope, options)));
   return results.flat().sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
@@ -87,6 +96,14 @@ interface IssueResponse {
 async function fetchItem(repo: string, number: number): Promise<Item> {
   const issue = JSON.parse(await gh(["api", `repos/${repo}/issues/${number}`])) as IssueResponse;
   const merged = Boolean(issue.pull_request?.merged_at);
+  let baseRef: string | null = null;
+  if (issue.pull_request) {
+    try {
+      baseRef = (JSON.parse(await gh(["api", `repos/${repo}/pulls/${number}`, "--jq", "{base: .base.ref}"])) as { base?: string }).base ?? null;
+    } catch {
+      baseRef = null;
+    }
+  }
   const item: Item = {
     repo,
     number: issue.number,
@@ -101,6 +118,7 @@ async function fetchItem(repo: string, number: number): Promise<Item> {
       (issue.labels ?? []).flatMap((label) => (typeof label !== "string" && label.name && label.color ? [[label.name, label.color]] : [])),
     ),
     state: merged ? "merged" : issue.state,
+    baseRef,
   };
   cache.set(itemKey(repo, number), { item, at: Date.now() });
   return item;

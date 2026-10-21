@@ -8,8 +8,8 @@ import { addTodoRpc, removeTodoRpc, viewSettings, type Item } from "../shared/co
 type ViewValues = z.output<typeof viewSettings.schema>;
 
 const DEFAULT_VIEW: ViewValues = {
-  work: { repos: [], kinds: [], statuses: [], labels: [], authors: [], text: "" },
-  items: { repos: [], kinds: [], statuses: [], labels: [], authors: [], text: "" },
+  work: { repos: [], kinds: [], statuses: [], labels: [], authors: [], bases: [], text: "" },
+  items: { repos: [], kinds: [], statuses: [], labels: [], authors: [], bases: [], text: "" },
   sort: { column: "updated", descending: true },
   itemsSort: { column: "updated", descending: true },
   noTaskOpen: false,
@@ -62,6 +62,7 @@ export function useTodoToggle() {
             isDraft: item.isDraft ?? false,
             labels: item.labels ?? [],
             state: item.state ?? "open",
+            baseRef: item.baseRef ?? null,
           })
         : remove({ repo: item.repo, number: item.number }),
     onSuccess: (result) => client.setQueryData(["todos"], result),

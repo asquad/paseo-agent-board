@@ -40,6 +40,8 @@ interface Props {
   onStarted(agentId: string | null): void;
 }
 
+const COMMON_BASES = ["main", "master", "develop", "staging"];
+
 type ItemsSortColumn = "updated" | "title" | "number";
 
 function sortItems(items: readonly Item[], column: ItemsSortColumn, descending: boolean): Item[] {
@@ -80,6 +82,7 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
       kind: filter.kinds.length === 1 ? (filter.kinds[0] as "pr" | "issue") : ("all" as const),
       labels: filter.labels,
       author: filter.authors.length === 1 ? filter.authors[0] : null,
+      bases: filter.bases,
       query: filter.text,
     },
     500,
@@ -142,8 +145,16 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
       },
       { key: "labels", label: "Метки", options: [...labels].sort().map((label) => ({ value: label, label, color: labelColor(colors, label) })) },
       { key: "authors", label: "Автор", options: [...authors].sort().map((author) => ({ value: author, label: author })) },
+      {
+        key: "bases",
+        label: "Ветка PR",
+        allowCustom: true,
+        options: [...new Set([...COMMON_BASES, ...work.flatMap((item) => (item.baseRef ? [item.baseRef] : [])), ...filter.bases])]
+          .sort()
+          .map((base) => ({ value: base, label: base })),
+      },
     ];
-  }, [repos, items.data, filter.labels, filter.authors]);
+  }, [repos, items.data, filter.labels, filter.authors, filter.bases, work]);
 
   const deliver = actions.find((action) => action.id === DELIVER_ACTION_ID) ?? null;
   const others = actions.filter((action) => action.id !== DELIVER_ACTION_ID);

@@ -24,6 +24,8 @@ function useNow(intervalMs: number) {
   return now;
 }
 
+const COMMON_BASES = ["main", "master", "develop", "staging"];
+
 const KIND_LABELS: Record<string, string> = { pr: "PR", issue: "Issue", intake: "Intake", workspace: "Без задачи" };
 
 export function BoardScreen({ theme, layout, params, navigation }: PluginScreenProps) {
@@ -79,11 +81,13 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
     const labels = new Set<string>(view.work.labels);
     const colors: Record<string, string> = {};
     const authors = new Set<string>(view.work.authors);
+    const bases = new Set<string>([...COMMON_BASES, ...view.work.bases]);
     for (const item of board.work) {
       for (const repo of item.repos) if (!repos.has(repo)) repos.set(repo, repo.split("/").pop() ?? repo);
       item.labels.forEach((label) => labels.add(label));
       Object.assign(colors, item.labelColors);
       if (item.author) authors.add(item.author);
+      if (item.baseRef) bases.add(item.baseRef);
     }
     return [
       { key: "repos", label: "Репо", options: [...repos].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label })) },
@@ -95,8 +99,9 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
       },
       { key: "labels", label: "Метки", options: [...labels].sort().map((label) => ({ value: label, label, color: labelColor(colors, label) })) },
       { key: "authors", label: "Автор", options: [...authors].sort().map((author) => ({ value: author, label: author })) },
+      { key: "bases", label: "Ветка PR", allowCustom: true, options: [...bases].sort().map((base) => ({ value: base, label: base })) },
     ];
-  }, [board.repos, board.work, view.work.labels, view.work.authors, theme]);
+  }, [board.repos, board.work, view.work.labels, view.work.authors, view.work.bases, theme]);
 
   const selectedWork: WorkItem | null = board.work.find((item) => item.key === selected) ?? null;
   const fallback = layout.compact ? null : (visible.find((item) => !item.loose) ?? null);

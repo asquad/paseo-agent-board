@@ -21,6 +21,7 @@ export interface WorkItem {
   url: string | null;
   labels: string[];
   labelColors: Record<string, string>;
+  baseRef: string | null;
   author: string | null;
   status: WorkStatus;
   statusText: string;
@@ -467,6 +468,7 @@ function finish(
     url: details?.url ?? draft.todo?.url ?? null,
     labels: details?.labels ?? [],
     labelColors: details?.labelColors ?? {},
+    baseRef: prMeta?.baseRef ?? details?.baseRef ?? null,
     author: details?.author ?? null,
     sentAt: sent.sort()[0] ?? [...activity].sort()[0] ?? "",
     updatedAt: [...activity].sort().at(-1) ?? "",
@@ -505,6 +507,7 @@ export function filterWork(items: readonly WorkItem[], filter: Filter, notes: Re
     if (filter.statuses.length && !filter.statuses.includes(item.status)) return false;
     if (filter.labels.length && !filter.labels.every((label) => item.labels.includes(label))) return false;
     if (filter.authors.length && !(item.author && filter.authors.includes(item.author))) return false;
+    if (filter.bases.length && !(item.baseRef && filter.bases.includes(item.baseRef))) return false;
     if (filter.text && !matchesText(`${item.title} ${item.repos.join(" ")} #${item.number ?? ""} ${item.statusText} ${notes.get(item.key) ?? ""}`, filter.text)) {
       return false;
     }
