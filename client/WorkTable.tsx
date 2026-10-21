@@ -2,7 +2,7 @@ import type { PluginTheme } from "@getpaseo/plugin";
 import { FlatList, Icon } from "@getpaseo/plugin/client/react-native";
 import { Pressable, Text, View } from "react-native";
 import { formatAge } from "../shared/model";
-import { workNumber, type SortColumn, type WorkItem } from "../shared/work";
+import { formatWorkNumbers, type SortColumn, type WorkItem } from "../shared/work";
 import { workStatusColor, type Styles } from "./styles";
 
 interface Props {
@@ -37,7 +37,7 @@ function repoNames(item: WorkItem): string {
 const COLUMNS: { id: SortColumn; label: string; width?: number }[] = [
   { id: "status", label: "", width: 22 },
   { id: "title", label: "Название" },
-  { id: "number", label: "№", width: 64 },
+  { id: "number", label: "№", width: 96 },
   { id: "sent", label: "Отправлено", width: 96 },
   { id: "updated", label: "Изменено", width: 72 },
 ];
@@ -68,7 +68,7 @@ function Row({
     item.repo && item.number !== null
       ? `${item.repo.split("/").pop()} #${item.number}`
       : item.kind === "scratch"
-        ? `scratch${item.repos.length ? ` · ${repoNames(item)}` : ""}`
+        ? `scratch${item.repos.length ? ` · ${repoNames(item)}` : ""}${compact && item.childItems.length ? ` · ${formatWorkNumbers(item)}` : ""}`
         : repoNames(item) || "репо не определено";
   return (
     <Pressable
@@ -101,8 +101,8 @@ function Row({
       </View>
       {compact ? null : (
         <>
-          <Text style={[styles.muted, { width: 64 }]} numberOfLines={1}>
-            {workNumber(item) ? `#${workNumber(item)?.number}` : "—"}
+          <Text style={[styles.muted, { width: 96 }]} numberOfLines={1}>
+            {formatWorkNumbers(item)}
           </Text>
           <Text style={[styles.muted, { width: 96 }]}>{shortDate(item.sentAt)}</Text>
           <Text style={[styles.muted, { width: 72 }]}>{item.updatedAt ? formatAge(item.updatedAt, now) : "—"}</Text>

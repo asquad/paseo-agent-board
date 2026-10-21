@@ -39,6 +39,7 @@ export interface WorkItem {
   childItems: Item[];
   parentKey: string | null;
   childKeys: string[];
+  relatedNumbers: { repo: string; number: number }[];
   phase: IntakePhase | null;
   pending: Item[];
 }
@@ -350,11 +351,18 @@ function group(items: WorkItem[]): WorkItem[] {
   const byKey = new Map(items.map((item) => [item.key, item]));
   for (const parent of items) {
     if (!parent.childKeys.length) continue;
-    const children = parent.childKeys.map((key) => byKey.get(key)).filter((item): item is WorkItem => Boolean(item));
+    const children = parent.childKeys
+      .map((key) => byKey.get(key))
+      .filter((item): item is WorkItem => Boolean(item))
+      .sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+    parent.childKeys = children.map((child) => child.key);
+    parent.relatedNumbers = children.flatMap((child) => (child.repo && child.number !== null ? [{ repo: child.repo, number: child.number }] : []));
     const urgent = [parent, ...children].sort((a, b) => statusRank(a.status) - statusRank(b.status))[0];
     if (urgent !== parent && statusRank(urgent.status) < statusRank(parent.status)) {
+      const same = children.filter((child) => child.status === urgent.status && child.number !== null);
+      const numbers = same.map((child) => `#${child.number}`).join(", ");
       parent.status = urgent.status;
-      parent.statusText = `${urgent.number !== null ? `#${urgent.number}: ` : ""}${urgent.statusText}`;
+      parent.statusText = `${numbers ? `${numbers}: ` : ""}${urgent.statusText}`;
     }
     for (const child of children) if (child.updatedAt > parent.updatedAt) parent.updatedAt = child.updatedAt;
   }
@@ -484,6 +492,7 @@ function finish(
     childItems,
     parentKey: null,
     childKeys: [],
+    relatedNumbers: [],
     phase: draft.kind === "scratch" ? "analysis" : null,
     pending: [],
     ...agentStatus(draft, statusMeta, workspaces),
@@ -518,12 +527,37 @@ export function filterWork(items: readonly WorkItem[], filter: Filter, notes: Re
 
 export type SortColumn = "status" | "title" | "sent" | "updated" | "number";
 
+export function workNumbers(item: WorkItem): { repo: string; number: number }[] {
+  const own = item.repo && item.number !== null ? [{ repo: item.repo, number: item.number }] : [];
+  const link = !own.length ? parseLink(item.manualLink) : null;
+  const all = [
+    ...own,
+    ...(link ? [link] : []),
+    ...item.childItems.map((child) => ({ repo: child.repo, number: child.number })),
+    ...item.relatedNumbers,
+  ];
+  const seen = new Set<string>();
+  const unique = all.filter((entry) => {
+    const key = itemKey(entry.repo, entry.number);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const [first, ...rest] = unique;
+  if (!first) return [];
+  const sortedRest = rest.sort((a, b) => a.number - b.number || a.repo.localeCompare(b.repo));
+  return own.length ? [first, ...sortedRest] : [first, ...sortedRest].sort((a, b) => a.number - b.number || a.repo.localeCompare(b.repo));
+}
+
 export function workNumber(item: WorkItem): { repo: string; number: number } | null {
-  if (item.repo && item.number !== null) return { repo: item.repo, number: item.number };
-  const child = item.childItems[0];
-  if (child) return { repo: child.repo, number: child.number };
-  const link = parseLink(item.manualLink);
-  return link;
+  return workNumbers(item)[0] ?? null;
+}
+
+export function formatWorkNumbers(item: WorkItem, limit = 3): string {
+  const numbers = workNumbers(item);
+  if (!numbers.length) return "—";
+  const shown = numbers.slice(0, limit).map((entry) => `#${entry.number}`).join(", ");
+  return numbers.length > limit ? `${shown} +${numbers.length - limit}` : shown;
 }
 
 export function compareNumbers(
