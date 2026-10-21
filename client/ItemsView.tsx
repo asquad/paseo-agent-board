@@ -5,7 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import {
+  DEFAULT_PR_STATES,
   DELIVER_ACTION_ID,
+  PR_STATES,
   itemKey,
   resolveItemRpc,
   searchItemsRpc,
@@ -83,6 +85,7 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
       labels: filter.labels,
       author: filter.authors.length === 1 ? filter.authors[0] : null,
       bases: filter.bases ?? [],
+      prStates: filter.prStates ?? DEFAULT_PR_STATES,
       query: filter.text,
     },
     500,
@@ -145,6 +148,12 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
       },
       { key: "labels", label: "Метки", options: [...labels].sort().map((label) => ({ value: label, label, color: labelColor(colors, label) })) },
       { key: "authors", label: "Автор", options: [...authors].sort().map((author) => ({ value: author, label: author })) },
+      {
+        key: "prStates",
+        label: "Статус PR",
+        defaults: DEFAULT_PR_STATES,
+        options: PR_STATES.map((state) => ({ value: state.value, label: state.label })),
+      },
       {
         key: "bases",
         label: "Ветка PR",

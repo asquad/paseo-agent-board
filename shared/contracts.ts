@@ -76,6 +76,7 @@ export const FilterSchema = z.object({
   labels: z.array(z.string()).default([]),
   authors: z.array(z.string()).default([]),
   bases: z.array(z.string()).default([]),
+  prStates: z.array(z.string()).optional(),
   text: z.string().default(""),
 });
 export type Filter = z.infer<typeof FilterSchema>;
@@ -216,6 +217,7 @@ export const searchItemsRpc = defineRpc({
     labels: z.array(z.string()).default([]),
     author: z.string().nullable().default(null),
     bases: z.array(z.string()).default([]),
+    prStates: z.array(z.string()).default([]),
   }),
   output: z.object({ items: z.array(ItemSchema), repos: z.array(z.string()) }),
 });
@@ -374,6 +376,15 @@ export const launchIntakeRpc = defineRpc({
   }),
   output: z.object({ workspaceId: z.string(), agentId: z.string().nullable(), prompt: z.string() }),
 });
+
+export const PR_STATES = [
+  { value: "ready", label: "Готов к ревью", query: "draft:false" },
+  { value: "review_required", label: "Ждёт ревью", query: "draft:false review:required" },
+  { value: "approved", label: "Одобрен", query: "review:approved" },
+  { value: "changes_requested", label: "Нужны правки", query: "review:changes_requested" },
+  { value: "draft", label: "Черновик", query: "draft:true" },
+] as const;
+export const DEFAULT_PR_STATES = ["ready"];
 
 export const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 export const MAX_ATTACHMENTS_TOTAL_BYTES = 25 * 1024 * 1024;

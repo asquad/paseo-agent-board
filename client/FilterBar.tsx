@@ -12,8 +12,9 @@ export interface FilterOption {
 }
 
 export interface FilterField {
-  key: "repos" | "kinds" | "statuses" | "labels" | "authors" | "bases";
+  key: "repos" | "kinds" | "statuses" | "labels" | "authors" | "bases" | "prStates";
   allowCustom?: boolean;
+  defaults?: readonly string[];
   label: string;
   options: readonly FilterOption[];
 }
@@ -114,12 +115,18 @@ export function Picker({
 export function FilterBar({ filter, fields, onChange, theme, styles, placeholder }: Props) {
   const [open, setOpen] = useState<FilterField["key"] | null>(null);
   const openField = fields.find((field) => field.key === open) ?? null;
-  const active = fields.some((field) => filter[field.key].length) || filter.text.length > 0;
+  const valueOf = (field: FilterField): readonly string[] => filter[field.key] ?? field.defaults ?? [];
+  const isDefault = (field: FilterField) => {
+    const value = valueOf(field);
+    const defaults = field.defaults ?? [];
+    return value.length === defaults.length && value.every((entry) => defaults.includes(entry));
+  };
+  const active = fields.some((field) => !isDefault(field)) || filter.text.length > 0;
   return (
     <View style={{ gap: 6 }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
         {fields.map((field) => {
-          const selected = filter[field.key];
+          const selected = valueOf(field);
           const summary =
             selected.length === 0
               ? field.label
@@ -145,7 +152,7 @@ export function FilterBar({ filter, fields, onChange, theme, styles, placeholder
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Сбросить все фильтры"
-            onPress={() => onChange({ repos: [], kinds: [], statuses: [], labels: [], authors: [], bases: [], text: "" })}
+            onPress={() => onChange({ repos: [], kinds: [], statuses: [], labels: [], authors: [], bases: [], prStates: undefined, text: "" })}
             style={styles.chip}
           >
             <Text style={styles.chipText}>Сбросить</Text>
@@ -163,7 +170,7 @@ export function FilterBar({ filter, fields, onChange, theme, styles, placeholder
       {openField ? (
         <Picker
           field={openField}
-          selected={filter[openField.key]}
+          selected={valueOf(openField)}
           onChange={(values) => onChange({ ...filter, [openField.key]: values })}
           onClose={() => setOpen(null)}
           theme={theme}

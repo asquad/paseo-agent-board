@@ -1,5 +1,5 @@
 import { execCommand } from "@getpaseo/plugin/server";
-import { itemKey, type Item } from "../shared/contracts";
+import { itemKey, PR_STATES, type Item } from "../shared/contracts";
 import { parseReference } from "../shared/actions";
 
 const MAX_REPOS = 30;
@@ -32,15 +32,17 @@ interface SearchOptions {
   labels: readonly string[];
   author: string | null;
   base?: string | null;
+  qualifier?: string;
 }
 
-async function search(kind: "pr" | "issue", repos: readonly string[], { query, labels, author, base }: SearchOptions): Promise<Item[]> {
+async function search(kind: "pr" | "issue", repos: readonly string[], { query, labels, author, base, qualifier }: SearchOptions): Promise<Item[]> {
   const fields =
     kind === "pr"
       ? "number,title,url,updatedAt,isDraft,author,labels,repository"
       : "number,title,url,updatedAt,author,labels,repository";
   const args = ["search", kind === "pr" ? "prs" : "issues"];
-  if (query.trim()) args.push(query.trim());
+  const text = [query.trim(), kind === "pr" ? (qualifier ?? "") : ""].filter(Boolean).join(" ");
+  if (text) args.push(text);
   for (const repo of repos) args.push("--repo", repo);
   for (const label of labels) args.push("--label", label);
   if (author) args.push("--author", author);
@@ -66,19 +68,33 @@ async function search(kind: "pr" | "issue", repos: readonly string[], { query, l
 export async function searchItems(
   repos: readonly string[],
   kind: "pr" | "issue" | "all",
-  options: SearchOptions & { bases?: readonly string[] },
+  options: SearchOptions & { bases?: readonly string[]; prStates?: readonly string[] },
 ): Promise<Item[]> {
   const scope = repos.slice(0, MAX_REPOS);
   if (!scope.length) return [];
   const bases = options.bases ?? [];
-  if (bases.length) {
-    if (kind === "issue") return [];
-    const results = await Promise.all(bases.map((base) => search("pr", scope, { ...options, base })));
-    return results.flat().sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+  const qualifiers = (options.prStates ?? [])
+    .map((state) => PR_STATES.find((candidate) => candidate.value === state)?.query)
+    .filter((query): query is NonNullable<typeof query> => Boolean(query));
+  const prSearches: Promise<Item[]>[] = [];
+  if (kind !== "issue") {
+    for (const base of bases.length ? bases : [null]) {
+      for (const qualifier of qualifiers.length ? qualifiers : [undefined]) {
+        prSearches.push(search("pr", scope, { ...options, base, qualifier }));
+      }
+    }
   }
-  const kinds: ("pr" | "issue")[] = kind === "all" ? ["pr", "issue"] : [kind];
-  const results = await Promise.all(kinds.map((current) => search(current, scope, options)));
-  return results.flat().sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+  const issueSearch = kind !== "pr" && !bases.length ? search("issue", scope, options) : Promise.resolve([]);
+  const results = [...(await Promise.all(prSearches)).flat(), ...(await issueSearch)];
+  const seen = new Set<string>();
+  return results
+    .filter((item) => {
+      const key = itemKey(item.repo, item.number);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
 }
 
 interface IssueResponse {
