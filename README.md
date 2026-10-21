@@ -2,7 +2,7 @@
 
 A Paseo plugin: one board for the tasks (PRs and issues) of every repository
 under a workspace folder and the agents working on them, with optional
-`/deliver` and `/intake` integration from
+`/deliver` and `/scratch` integration from
 [paseo-dev-team](https://github.com/asquad/paseo-dev-team). See
 [OVERVIEW.md](OVERVIEW.md) for what it shows.
 

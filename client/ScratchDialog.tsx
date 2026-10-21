@@ -22,7 +22,7 @@ export function ScratchDialog({ open, onOpenChange, theme, styles, onLaunched }:
   const mutation = useMutation({
     mutationFn: () => launch({ description: description.trim() }),
     onSuccess: (result) => {
-      toast.show("Intake запущен", { variant: "success" });
+      toast.show("Scratch запущен", { variant: "success" });
       setDescription("");
       onOpenChange(false);
       onLaunched(result.agentId);
@@ -50,7 +50,7 @@ export function ScratchDialog({ open, onOpenChange, theme, styles, onLaunched }:
         />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Запустить intake"
+          accessibilityLabel="Запустить scratch"
           disabled={!ready}
           onPress={() => mutation.mutate()}
           style={[styles.primary, { alignSelf: "flex-start" }, ready ? null : { opacity: 0.5 }]}

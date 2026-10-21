@@ -11,7 +11,7 @@ import {
 
 export interface WorkItem {
   key: string;
-  kind: "pr" | "issue" | "intake" | "workspace";
+  kind: "pr" | "issue" | "scratch" | "workspace";
   loose: boolean;
   repo: string | null;
   number: number | null;
@@ -172,7 +172,7 @@ function agentStatus(draft: Draft, meta: Item | null, workspaces: readonly Board
   if (run?.state === "final") {
     if (/^ready/i.test(run.result ?? "")) return { status: "ready", statusText: run.result ?? "Готово" };
     if (/blocked/i.test(run.result ?? "")) return { status: "waiting", statusText: run.result ?? "Ждёт внешнего" };
-    if (run.kind === "intake") return { status: "ready", statusText: run.result ?? "Задачи запущены" };
+    if (run.kind === "scratch") return { status: "ready", statusText: run.result ?? "Задачи запущены" };
     return { status: "attention", statusText: run.result ?? "Не завершено" };
   }
   if (run?.state === "blocked") return { status: "waiting", statusText: run.blocker ?? "Ждёт внешнего" };
@@ -230,8 +230,8 @@ export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPat
   };
 
   for (const run of [...runs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))) {
-    if (run.kind === "intake") {
-      const draft = create({ key: `intake:${run.runId}`, loose: false, repo: null, number: null, kind: "intake", run });
+    if (run.kind === "scratch") {
+      const draft = create({ key: `scratch:${run.runId}`, loose: false, repo: null, number: null, kind: "scratch", run });
       if (run.coordinatorAgentId) byAgent.set(run.coordinatorAgentId, draft);
       continue;
     }
@@ -252,7 +252,7 @@ export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPat
     const manual = linkOf(task.agent.workspaceId);
     if (!draft && manual) draft = keyed(manual.repo, manual.number, "issue");
     if (!draft && task.agent.labels[INTAKE_LABEL]) {
-      draft = create({ key: `intake-agent:${task.agent.id}`, loose: false, repo: null, number: null, kind: "intake" });
+      draft = create({ key: `scratch-agent:${task.agent.id}`, loose: false, repo: null, number: null, kind: "scratch" });
     }
     if (!draft && task.repo?.github && task.number !== null) draft = keyed(task.repo.github, task.number, "issue");
     if (!draft && task.workspace) {
@@ -303,12 +303,12 @@ export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPat
 function group(items: WorkItem[]): WorkItem[] {
   const byNumber = new Map<string, WorkItem>();
   for (const item of items) {
-    if (item.kind === "intake" || !item.repo) continue;
+    if (item.kind === "scratch" || !item.repo) continue;
     if (item.number !== null) byNumber.set(itemKey(item.repo, item.number), item);
     if (item.pr !== null) byNumber.set(itemKey(item.repo, item.pr), item);
   }
   for (const parent of items) {
-    if (parent.kind !== "intake") continue;
+    if (parent.kind !== "scratch") continue;
     for (const child of parent.childItems) {
       const item = byNumber.get(itemKey(child.repo, child.number));
       if (!item || item.parentKey || parent.childKeys.includes(item.key)) continue;
@@ -317,7 +317,7 @@ function group(items: WorkItem[]): WorkItem[] {
     }
   }
   for (const parent of items) {
-    if (parent.kind !== "intake") continue;
+    if (parent.kind !== "scratch") continue;
     const running = parent.tasks.some((task) => task.agent.status === "running" || task.agent.status === "initializing");
     parent.pending = parent.childItems.filter((child) => {
       const work = byNumber.get(itemKey(child.repo, child.number));
@@ -372,7 +372,7 @@ function inferRepos(
     return [draft.repo, ...(draft.run?.children ?? []).map((child) => child.repo)].filter((value, index, list) => list.indexOf(value) === index);
   }
   if (draft.run?.children.length) return [...new Set(draft.run.children.map((child) => child.repo))];
-  if (draft.kind === "intake") {
+  if (draft.kind === "scratch") {
     const linked = draft.tasks.flatMap((task) => agentLinks.get(task.agent.id) ?? []).map((link) => link.split("#")[0]);
     if (linked.length) return [...new Set(linked)];
   }
@@ -408,7 +408,7 @@ function finish(
   agentLinks: BuildWorkInput["agentLinks"],
 ): WorkItem {
   const childKeys =
-    draft.kind !== "intake"
+    draft.kind !== "scratch"
       ? []
       : draft.run?.children.length
         ? draft.run.children.map((child) => itemKey(child.repo, child.number))
@@ -455,10 +455,10 @@ function finish(
     draft.run?.title ??
     coordinator?.agent.title ??
     draft.key;
-  const title = draft.kind === "intake" && rawTitle.trim() === "Intake" && childItems[0] ? `Intake (${childItems[0].title})` : rawTitle;
+  const title = draft.kind === "scratch" && ["Scratch", "Intake"].includes(rawTitle.trim()) && childItems[0] ? `Scratch (${childItems[0].title})` : rawTitle;
   return {
     key: draft.key,
-    kind: draft.kind === "workspace" || draft.kind === "intake" ? draft.kind : (details?.kind ?? draft.kind),
+    kind: draft.kind === "workspace" || draft.kind === "scratch" ? draft.kind : (details?.kind ?? draft.kind),
     loose: draft.loose,
     repo: draft.repo,
     number: draft.number,
@@ -484,7 +484,7 @@ function finish(
     childItems,
     parentKey: null,
     childKeys: [],
-    phase: draft.kind === "intake" ? "analysis" : null,
+    phase: draft.kind === "scratch" ? "analysis" : null,
     pending: [],
     ...agentStatus(draft, statusMeta, workspaces),
   };
@@ -507,7 +507,8 @@ export function filterWork(items: readonly WorkItem[], filter: Filter, notes: Re
     if (filter.statuses.length && !filter.statuses.includes(item.status)) return false;
     if (filter.labels.length && !filter.labels.every((label) => item.labels.includes(label))) return false;
     if (filter.authors.length && !(item.author && filter.authors.includes(item.author))) return false;
-    if (filter.bases.length && !(item.baseRef && filter.bases.includes(item.baseRef))) return false;
+    const bases = filter.bases ?? [];
+    if (bases.length && !(item.baseRef && bases.includes(item.baseRef))) return false;
     if (filter.text && !matchesText(`${item.title} ${item.repos.join(" ")} #${item.number ?? ""} ${item.statusText} ${notes.get(item.key) ?? ""}`, filter.text)) {
       return false;
     }
@@ -567,7 +568,7 @@ export function workMetaKeys(
   const keys = new Set<string>(links.filter((link) => parseLink(link)));
   for (const run of runs) {
     for (const child of run.children) keys.add(`${child.repo}#${child.number}`);
-    if (!run.repo || run.kind === "intake") continue;
+    if (!run.repo || run.kind === "scratch") continue;
     if (run.number !== null) keys.add(`${run.repo}#${run.number}`);
     if (run.pr !== null) keys.add(`${run.repo}#${run.pr}`);
   }

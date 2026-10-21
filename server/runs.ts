@@ -13,7 +13,7 @@ const RunFileSchema = z.object({
   version: z.literal(1),
   runId: z.string().min(1),
   repo: text,
-  kind: z.enum(["pr", "issue", "intake"]).nullish().transform((value) => value ?? null),
+  kind: z.enum(["pr", "issue", "scratch", "intake"]).nullish().transform((value) => (value === "intake" ? "scratch" : (value ?? null))),
   number: integer,
   pr: integer,
   title: text,

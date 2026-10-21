@@ -26,7 +26,7 @@ function useNow(intervalMs: number) {
 
 const COMMON_BASES = ["main", "master", "develop", "staging"];
 
-const KIND_LABELS: Record<string, string> = { pr: "PR", issue: "Issue", intake: "Intake", workspace: "Без задачи" };
+const KIND_LABELS: Record<string, string> = { pr: "PR", issue: "Issue", scratch: "Scratch", workspace: "Без задачи" };
 
 export function BoardScreen({ theme, layout, params, navigation }: PluginScreenProps) {
   const styles = useMemo(() => makeStyles(theme, layout.compact), [theme, layout.compact]);
@@ -91,7 +91,7 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
     }
     return [
       { key: "repos", label: "Репо", options: [...repos].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label })) },
-      { key: "kinds", label: "Тип", options: ["pr", "issue", "intake", "workspace"].map((value) => ({ value, label: KIND_LABELS[value] })) },
+      { key: "kinds", label: "Тип", options: ["pr", "issue", "scratch", "workspace"].map((value) => ({ value, label: KIND_LABELS[value] })) },
       {
         key: "statuses",
         label: "Статус",

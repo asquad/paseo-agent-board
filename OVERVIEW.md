@@ -15,7 +15,7 @@ The second tab lists the open PRs and issues of all repositories that pass the f
 With [paseo-dev-team](https://github.com/asquad/paseo-dev-team) installed:
 
 - DELIVER starts `/deliver <url>` from the workspace root with the `team-coordinator` profile.
-- DELIVER FROM SCRATCH takes a free-form description and starts `/intake`: it extends matching issues or creates new ones with the `draft` label in the right repositories, waits for your confirmation (a button on the board), then starts `/deliver` on each.
+- DELIVER FROM SCRATCH takes a free-form description and starts `/scratch`: it extends matching issues or creates new ones with the `draft` label in the right repositories, waits for your confirmation (a button on the board), then starts `/deliver` on each.
 - The board reads the run state files those skills write to `~/.paseo-dev-team/runs` and shows each run's round, stage, review score, blocker, question and created issues.
 
 Without paseo-dev-team, switch the integration off; TODO, filters, agents and custom buttons keep working.

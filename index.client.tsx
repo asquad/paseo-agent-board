@@ -39,7 +39,7 @@ export default function contribute(client: PluginClientContext) {
     id: "deliver-from-scratch",
     title: "Deliver from scratch",
     icon: "Sparkles",
-    keywords: ["intake", "new task", "issue", "deliver"],
+    keywords: ["scratch", "new task", "issue", "deliver"],
     context: "global",
     onSelect: ({ openScreen }) => openScreen({ screenId: SCREEN, params: { scratch: "1" } }),
   });

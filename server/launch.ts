@@ -96,7 +96,7 @@ function intakeTitle(description: string): string {
   const sentence = line.split(/(?<=[.!?])\s/)[0] ?? line;
   const words = sentence.replace(/[.!?:;]+$/, "").split(/\s+/).filter(Boolean);
   const summary = words.slice(0, 7).join(" ");
-  return summary ? `Intake (${summary}${words.length > 7 ? "…" : ""})` : "Intake";
+  return summary ? `Scratch (${summary}${words.length > 7 ? "…" : ""})` : "Scratch";
 }
 
 interface IntakeInput {
@@ -107,7 +107,7 @@ interface IntakeInput {
 }
 
 export async function launchIntake(paseo: PaseoApi, input: IntakeInput) {
-  if (!input.rootPath) throw new Error("Set the board root folder first: intake runs from the folder that holds all repositories.");
+  if (!input.rootPath) throw new Error("Set the board root folder first: scratch runs from the folder that holds all repositories.");
   const profile = (await listProfiles(paseo)).find((candidate) => candidate.id === input.profileId);
   if (!profile?.provider) throw new Error(`Profile ${input.profileId} is missing. Install paseo-dev-team or change it in the board settings.`);
   const text = input.description.trim();

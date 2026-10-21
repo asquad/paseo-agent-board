@@ -67,8 +67,8 @@ function Row({
   const reference =
     item.repo && item.number !== null
       ? `${item.repo.split("/").pop()} #${item.number}`
-      : item.kind === "intake"
-        ? `intake${item.repos.length ? ` · ${repoNames(item)}` : ""}`
+      : item.kind === "scratch"
+        ? `scratch${item.repos.length ? ` · ${repoNames(item)}` : ""}`
         : repoNames(item) || "репо не определено";
   return (
     <Pressable

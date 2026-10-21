@@ -20,7 +20,7 @@ interface ChildAgent {
 
 function isIndependentRun(agent: ChildAgent, parentWorkspaceId: string | null): boolean {
   if (agent.labels?.["agent-board.item"] || agent.labels?.["agent-board.intake"]) return true;
-  if (/\b(deliver|intake)\b/i.test(agent.title ?? "") && /#\d+/.test(agent.title ?? "")) return true;
+  if (/\b(deliver|scratch|intake)\b/i.test(agent.title ?? "") && /#\d+/.test(agent.title ?? "")) return true;
   return Boolean(agent.workspaceId && agent.workspaceId !== parentWorkspaceId && agent.status === "running");
 }
 

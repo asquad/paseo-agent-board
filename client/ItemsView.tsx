@@ -82,7 +82,7 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
       kind: filter.kinds.length === 1 ? (filter.kinds[0] as "pr" | "issue") : ("all" as const),
       labels: filter.labels,
       author: filter.authors.length === 1 ? filter.authors[0] : null,
-      bases: filter.bases,
+      bases: filter.bases ?? [],
       query: filter.text,
     },
     500,

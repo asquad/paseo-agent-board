@@ -121,7 +121,7 @@ export function SettingsScreen({ theme }: PluginSurfaceProps) {
     deliverEnabled: true,
     runStateDir: "",
     intakeProfile: "team-coordinator",
-    intakePrompt: "/intake {input}",
+    intakePrompt: "/scratch {input}",
     cleanupPrompt: DEFAULT_CLEANUP_PROMPT,
     draftLabel: "draft",
   };
@@ -189,7 +189,7 @@ export function SettingsScreen({ theme }: PluginSurfaceProps) {
         <SettingsCard>
           <SettingsSwitch
             label="Integration"
-            hint="Track /deliver and /intake runs (stage, score, blocker, created issues) and show Deliver from scratch. Needs paseo-dev-team; without it, turn this off."
+            hint="Track /deliver and /scratch runs (stage, score, blocker, created issues) and show Deliver from scratch. Needs paseo-dev-team; without it, turn this off."
             value={current.deliverEnabled}
             onValueChange={(deliverEnabled) => update({ deliverEnabled })}
           />

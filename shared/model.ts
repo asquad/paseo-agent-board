@@ -181,7 +181,7 @@ export function buildTasks({ agents, workspaces, repos, rootPath, rootName, runs
     const parent = parentId ? byId.get(parentId) : undefined;
     if (!parent) continue;
     const own = deliverNumber(agent, agent.workspaceId !== parent.workspaceId ? workspaceOf(agent) : null);
-    const runOwned = runs.some((run) => run.coordinatorAgentId === agent.id && run.kind !== "intake");
+    const runOwned = runs.some((run) => run.coordinatorAgentId === agent.id && run.kind !== "scratch");
     if ((own !== null && own !== deliverNumber(parent, workspaceOf(parent))) || runOwned) promoted.add(agent.id);
   }
   const children = new Map<string, BoardAgent[]>();

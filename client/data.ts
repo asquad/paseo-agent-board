@@ -170,7 +170,7 @@ export function useBoard() {
     () =>
       new Set([
         ...tasks.filter((task) => task.agent.labels[INTAKE_LABEL]).map((task) => task.agent.id),
-        ...(runs.data?.runs ?? []).flatMap((run) => (run.kind === "intake" && run.coordinatorAgentId ? [run.coordinatorAgentId] : [])),
+        ...(runs.data?.runs ?? []).flatMap((run) => (run.kind === "scratch" && run.coordinatorAgentId ? [run.coordinatorAgentId] : [])),
       ]),
     [tasks, runs.data],
   );

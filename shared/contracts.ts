@@ -32,11 +32,11 @@ export const DEFAULT_ACTIONS: BoardAction[] = [
 
 export const DEFAULT_CLEANUP_PROMPT = [
   "This task is being archived. Clean up what this agent and its subagents created for it, then stop:",
-  "- archive or close your subagents, except those that run their own deliver or intake for another issue or PR: leave those running and list them;",
+  "- archive or close your subagents, except those that run their own deliver or scratch for another issue or PR: leave those running and list them;",
   "- remove the git worktrees and local branches this task created, but keep any with uncommitted or unpushed work and list them instead;",
   "- deregister the Paseo projects and workspaces this task registered (not the ones it was started in);",
   "- delete temporary files and scratch data this task wrote outside the repositories, keeping reports and artifacts meant for the user;",
-  "- update the run state file to final if a deliver or intake run is still in progress.",
+  "- update the run state file to final if a deliver or scratch run is still in progress.",
   "Do not push, merge, close issues or PRs, or delete anything you did not create. Reply with a short list of what you removed and what you kept.",
 ].join("\n");
 
@@ -48,7 +48,7 @@ const BoardSettingsSchema = z.object({
   deliverEnabled: z.boolean().default(true),
   runStateDir: z.string().default(""),
   intakeProfile: z.string().default("team-coordinator"),
-  intakePrompt: z.string().default("/intake {input}"),
+  intakePrompt: z.string().default("/scratch {input}"),
   draftLabel: z.string().default("draft"),
   cleanupPrompt: z.string().default(DEFAULT_CLEANUP_PROMPT),
 });
@@ -134,7 +134,7 @@ export type RunChild = z.infer<typeof RunChildSchema>;
 export const RunStateSchema = z.object({
   runId: z.string(),
   repo: z.string().nullable(),
-  kind: z.enum(["pr", "issue", "intake"]).nullable(),
+  kind: z.enum(["pr", "issue", "scratch"]).nullable(),
   number: z.number().int().nullable(),
   pr: z.number().int().nullable(),
   title: z.string().nullable(),
@@ -328,7 +328,7 @@ export const undraftRpc = defineRpc({
 });
 
 export const approveIntakeRpc = defineRpc({
-  name: "intake.approve",
+  name: "scratch.approve",
   input: z.object({ intakeAgentId: z.string().nullable(), items: z.array(ItemSchema).min(1), instructions: z.string().default("") }),
   output: z.object({
     started: z.array(z.object({ key: z.string(), agentId: z.string().nullable(), prompt: z.string() })),
@@ -337,13 +337,13 @@ export const approveIntakeRpc = defineRpc({
 });
 
 export const rejectIntakeItemRpc = defineRpc({
-  name: "intake.reject",
+  name: "scratch.reject",
   input: z.object({ intakeAgentId: z.string().nullable(), item: ItemSchema }),
   output: z.object({ ok: z.boolean(), draftLabel: z.string() }),
 });
 
 export const requestIntakeChangesRpc = defineRpc({
-  name: "intake.changes",
+  name: "scratch.changes",
   input: z.object({ intakeAgentId: z.string(), text: z.string().min(1) }),
   output: z.object({ ok: z.boolean() }),
 });
@@ -364,7 +364,7 @@ export const setNoteRpc = defineRpc({
 });
 
 export const launchIntakeRpc = defineRpc({
-  name: "intake.launch",
+  name: "scratch.launch",
   input: z.object({ description: z.string().min(1) }),
   output: z.object({ workspaceId: z.string(), agentId: z.string().nullable(), prompt: z.string() }),
 });

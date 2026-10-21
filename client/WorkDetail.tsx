@@ -604,7 +604,7 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
           ) : null}
         </View>
       ) : null}
-      {work.kind === "intake" ? <IntakeCard
+      {work.kind === "scratch" ? <IntakeCard
           work={work}
           allWork={allWork}
           deliverReady={actions.some((action) => action.id === DELIVER_ACTION_ID && profiles.has(action.profile))}
@@ -612,7 +612,7 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
           theme={theme}
           onSelect={onSelect}
         /> : null}
-      {work.kind !== "intake" ? (
+      {work.kind !== "scratch" ? (
         <DeliverCard run={work.run} github={work.repo} prNumber={work.pr} styles={styles} theme={theme} />
       ) : null}
       <Belonging work={work} repoOptions={repoOptions} styles={styles} theme={theme} />
