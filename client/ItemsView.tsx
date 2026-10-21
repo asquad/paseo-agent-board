@@ -16,7 +16,7 @@ import {
 } from "../shared/contracts";
 import { formatAge } from "../shared/model";
 import type { WorkItem } from "../shared/work";
-import { ActionButtons } from "./ActionButtons";
+import { ActionButton, ActionButtons } from "./ActionButtons";
 import { FilterBar, type FilterField } from "./FilterBar";
 import { LabelList, labelColor } from "./LabelChip";
 import { SortControl } from "./SortControl";
@@ -66,7 +66,7 @@ function useDebounced<T>(value: T, delayMs: number) {
   return debounced;
 }
 
-type Expanded = { key: string; mode: "deliver" | "more" } | null;
+type Expanded = { key: string } | null;
 
 export function ItemsView({ repos, work, actions, profiles, filter, onFilterChange, sort, onSortChange, theme, styles, now, compact, onOpenWork, onStarted }: Props) {
   const search = useRpc(searchItemsRpc);
@@ -152,11 +152,6 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
     const key = itemKey(item.repo, item.number);
     const inWork = workByKey.get(key) ?? null;
     const open = expanded?.key === key ? expanded : null;
-    const deliverDisabled = !deliver || !profiles.has(deliver.profile);
-    const startDeliver = () => {
-      if (!deliver) return;
-      setExpanded(open?.mode === "deliver" ? null : { key, mode: "deliver" });
-    };
     return (
       <View key={key} style={[{ borderRadius: 6 }, open || pinned ? styles.rowSelected : null]}>
         <View style={[styles.row, { flexWrap: compact ? "wrap" : "nowrap" }]}>
@@ -205,23 +200,24 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
                 <Icon name="BookmarkPlus" size={14} color={theme.colors.foreground} />
                 <Text style={styles.buttonText}>TODO</Text>
               </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Deliver ${item.repo}#${item.number}`}
-                disabled={deliverDisabled}
-                onPress={startDeliver}
-                style={[styles.primary, deliverDisabled ? { opacity: 0.5 } : null]}
-              >
-                <Icon name="Rocket" size={14} color={theme.colors.accentForeground} />
-                <Text style={styles.primaryText}>DELIVER</Text>
-              </Pressable>
+              {deliver ? (
+                <ActionButton
+                  item={item}
+                  action={deliver}
+                  label="DELIVER"
+                  profiles={profiles}
+                  theme={theme}
+                  styles={styles}
+                  onStarted={onStarted}
+                />
+              ) : null}
             </>
           )}
           {others.length ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Другие действия"
-              onPress={() => setExpanded(open?.mode === "more" ? null : { key, mode: "more" })}
+              onPress={() => setExpanded(open ? null : { key })}
               style={styles.button}
             >
               <Icon name="Ellipsis" size={14} color={theme.colors.foreground} />
@@ -231,13 +227,11 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
         {open ? (
           <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
             <ActionButtons
-              key={open.mode}
               item={item}
-              actions={open.mode === "deliver" && deliver ? [deliver] : others}
+              actions={others}
               profiles={profiles}
               theme={theme}
               styles={styles}
-              initialPending={open.mode === "deliver" ? DELIVER_ACTION_ID : undefined}
               onStarted={(agentId) => {
                 setExpanded(null);
                 onStarted(agentId);
