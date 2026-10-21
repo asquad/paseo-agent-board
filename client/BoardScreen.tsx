@@ -253,7 +253,7 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
             setSelected(key);
             setTab("work");
           }}
-          onStarted={showStarted}
+          onStarted={() => undefined}
         />
       ) : layout.compact ? (
         <View style={{ flex: 1 }}>{selectedWork ? detail : table}</View>
