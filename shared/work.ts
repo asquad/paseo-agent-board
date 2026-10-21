@@ -357,6 +357,9 @@ function group(items: WorkItem[]): WorkItem[] {
       .sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
     parent.childKeys = children.map((child) => child.key);
     parent.relatedNumbers = children.flatMap((child) => (child.repo && child.number !== null ? [{ repo: child.repo, number: child.number }] : []));
+    for (const child of children) {
+      for (const repo of child.repos) if (!parent.repos.some((known) => known.toLowerCase() === repo.toLowerCase())) parent.repos.push(repo);
+    }
     const urgent = [parent, ...children].sort((a, b) => statusRank(a.status) - statusRank(b.status))[0];
     if (urgent !== parent && statusRank(urgent.status) < statusRank(parent.status)) {
       const same = children.filter((child) => child.status === urgent.status && child.number !== null);
@@ -556,7 +559,10 @@ export function workNumber(item: WorkItem): { repo: string; number: number } | n
 export function formatWorkNumbers(item: WorkItem, limit = 3): string {
   const numbers = workNumbers(item);
   if (!numbers.length) return "—";
-  const shown = numbers.slice(0, limit).map((entry) => `#${entry.number}`).join(", ");
+  const repos = new Set(numbers.map((entry) => entry.repo.toLowerCase()));
+  const label = (entry: { repo: string; number: number }) =>
+    repos.size > 1 ? `${entry.repo.split("/").pop()} #${entry.number}` : `#${entry.number}`;
+  const shown = numbers.slice(0, limit).map(label).join(", ");
   return numbers.length > limit ? `${shown} +${numbers.length - limit}` : shown;
 }
 

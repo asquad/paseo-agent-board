@@ -37,7 +37,7 @@ function repoNames(item: WorkItem): string {
 const COLUMNS: { id: SortColumn; label: string; width?: number }[] = [
   { id: "status", label: "", width: 22 },
   { id: "title", label: "Название" },
-  { id: "number", label: "№", width: 96 },
+  { id: "number", label: "№", width: 150 },
   { id: "sent", label: "Отправлено", width: 96 },
   { id: "updated", label: "Изменено", width: 72 },
 ];
@@ -64,10 +64,13 @@ function Row({
   compact: boolean;
 }) {
   const color = workStatusColor(theme, item.status);
+  const multiRepo = item.repos.length > 1;
   const reference =
-    item.repo && item.number !== null
+    item.repo && item.number !== null && !multiRepo
       ? `${item.repo.split("/").pop()} #${item.number}`
-      : item.kind === "scratch"
+      : item.repo && item.number !== null
+        ? `${repoNames(item)}${compact ? ` · ${formatWorkNumbers(item)}` : ""}`
+        : item.kind === "scratch"
         ? `scratch${item.repos.length ? ` · ${repoNames(item)}` : ""}${compact && item.childItems.length ? ` · ${formatWorkNumbers(item)}` : ""}`
         : repoNames(item) || "репо не определено";
   return (
@@ -101,7 +104,7 @@ function Row({
       </View>
       {compact ? null : (
         <>
-          <Text style={[styles.muted, { width: 96 }]} numberOfLines={1}>
+          <Text style={[styles.muted, { width: 150 }]} numberOfLines={1}>
             {formatWorkNumbers(item)}
           </Text>
           <Text style={[styles.muted, { width: 96 }]}>{shortDate(item.sentAt)}</Text>
