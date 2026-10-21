@@ -13,6 +13,7 @@ const DEFAULT_VIEW: ViewValues = {
   sort: { column: "updated", descending: true },
   itemsSort: { column: "updated", descending: true },
   noTaskOpen: false,
+  showDismissed: false,
 };
 
 export function useView() {

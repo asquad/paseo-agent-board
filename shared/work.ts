@@ -328,6 +328,10 @@ function group(items: WorkItem[]): WorkItem[] {
     const delivering = parent.childKeys.length > 0;
     const allClosed = parent.childItems.length > 0 && parent.childItems.every((child) => child.state !== "open");
     parent.phase = parent.pending.length ? "approve" : delivering ? (allClosed ? "done" : "delivery") : parent.childItems.length ? (allClosed ? "done" : "approve") : "analysis";
+    if (parent.phase === "done" && !running && !parent.tasks.length) {
+      parent.status = "closed";
+      parent.statusText = "Готово: все issues закрыты";
+    }
     if (parent.phase === "approve" && !running && statusRank(parent.status) > statusRank("question")) {
       parent.status = "question";
       parent.statusText = `Ждёт подтверждения: ${parent.pending.length || parent.childItems.length}`;

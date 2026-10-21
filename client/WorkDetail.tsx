@@ -11,6 +11,7 @@ import {
   requestIntakeChangesRpc,
   resolveItemRpc,
   setAssignmentsRpc,
+  setDismissedRpc,
   setNoteRpc,
   type BoardAction,
   type Item,
@@ -40,6 +41,7 @@ interface Props {
   repoOptions: readonly FilterOption[];
   allWork: readonly WorkItem[];
   onSelect(key: string): void;
+  dismissedAt: string | null;
 }
 
 function formatDate(iso: string): string {
@@ -318,6 +320,33 @@ function IntakeCard({
   );
 }
 
+function useDismissToggle(work: WorkItem, allWork: readonly WorkItem[]) {
+  const save = useRpc(setDismissedRpc);
+  const client = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (dismissed: boolean) => {
+      const keys = new Set<string>([work.key]);
+      let added = true;
+      while (added) {
+        added = false;
+        for (const item of allWork) {
+          if (item.parentKey && keys.has(item.parentKey) && !keys.has(item.key)) {
+            keys.add(item.key);
+            added = true;
+          }
+        }
+      }
+      return save({ keys: [...keys], dismissed });
+    },
+    onSuccess: (result, dismissed) => {
+      client.setQueryData(["dismissed"], result);
+      toast.show(dismissed ? "Убрано с доски" : "Возвращено на доску", { variant: "success" });
+    },
+    onError: (error) => toast.error((error as Error).message),
+  });
+}
+
 function NoteBox({ itemKey, styles, theme }: { itemKey: string; styles: Styles; theme: PluginTheme }) {
   const notes = useNotes();
   const save = useRpc(setNoteRpc);
@@ -527,7 +556,9 @@ function WorkspaceRow({
   );
 }
 
-export function WorkDetail({ item: work, theme, styles, now, showWorkers, actions, profiles, navigation, onStarted, onBack, repoOptions, allWork, onSelect }: Props) {
+export function WorkDetail({ item: work, theme, styles, now, showWorkers, actions, profiles, navigation, onStarted, onBack, repoOptions, allWork, onSelect, dismissedAt }: Props) {
+  const dismiss = useDismissToggle(work, allWork);
+  const isDismissed = Boolean(dismissedAt && work.updatedAt <= dismissedAt);
   const color = workStatusColor(theme, work.status);
   const item = useItem(work);
   const todo = useTodoToggle();
@@ -553,6 +584,14 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
         </View>
         <View style={{ flex: 1 }} />
         <Text style={styles.muted}>изм. {formatAge(work.updatedAt, now)}</Text>
+        <Button
+          styles={styles}
+          theme={theme}
+          icon={isDismissed ? "Eye" : "EyeOff"}
+          label={isDismissed ? "Вернуть на доску" : "Убрать с доски"}
+          disabled={dismiss.isPending || work.tasks.some((task) => task.agent.status === "running")}
+          onPress={() => dismiss.mutate(!isDismissed)}
+        />
       </View>
       <Text style={styles.heading} selectable>
         {work.title}

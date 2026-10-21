@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { STATUSES, type WorkStatus } from "../shared/contracts";
 import { filterWork, sortWork, STATUS_LABELS, type SortColumn, type WorkItem } from "../shared/work";
-import { useBoard, useNotes } from "./data";
+import { useBoard, useDismissed, useNotes } from "./data";
 import { FilterBar, type FilterField } from "./FilterBar";
 import { ItemsView } from "./ItemsView";
 import { ScratchDialog } from "./ScratchDialog";
@@ -32,6 +32,7 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
   const styles = useMemo(() => makeStyles(theme, layout.compact), [theme, layout.compact]);
   const board = useBoard();
   const notes = useNotes();
+  const dismissed = useDismissed();
   const now = useNow(30_000);
   const [view, setView] = useView();
   const [tab, setTab] = useState<"work" | "items">(params.view === "items" ? "items" : "work");
@@ -60,8 +61,26 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
   }, [pendingAgent, board.work]);
 
   const visible = useMemo(
-    () => sortWork(filterWork(board.work, view.work, notes), view.sort.column, view.sort.descending),
-    [board.work, view.work, view.sort, notes],
+    () => {
+      const parents = new Map(board.work.map((item) => [item.key, item.parentKey]));
+      const hidden = (item: WorkItem): boolean => {
+        const at = dismissed.get(item.key);
+        if (at && item.updatedAt <= at) return true;
+        const parent = item.parentKey ? board.work.find((candidate) => candidate.key === item.parentKey) : undefined;
+        return Boolean(parent && parents.has(parent.key) && hidden(parent));
+      };
+      const pool = board.work.filter((item) => (view.showDismissed ? true : !hidden(item)));
+      return sortWork(filterWork(pool, view.work, notes), view.sort.column, view.sort.descending);
+    },
+    [board.work, view.work, view.sort, notes, dismissed, view.showDismissed],
+  );
+
+  const dismissedCount = useMemo(
+    () => board.work.filter((item) => {
+      const at = dismissed.get(item.key);
+      return Boolean(at && item.updatedAt <= at);
+    }).length,
+    [board.work, dismissed],
   );
 
   const grouped = useMemo(() => {
@@ -137,6 +156,7 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
       onBack={back}
       repoOptions={workFields[0]?.options ?? []}
       allWork={board.work}
+      dismissedAt={dismissed.get(detailWork.key) ?? null}
       onSelect={setSelected}
     />
   ) : (
@@ -184,6 +204,19 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
         compact={layout.compact}
         loading={board.loading}
       />
+      {dismissedCount ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={view.showDismissed ? "Спрятать убранные задачи" : "Показать убранные задачи"}
+          onPress={() => setView((current) => ({ ...current, showDismissed: !current.showDismissed }))}
+          style={[styles.row, { paddingVertical: 4 }]}
+        >
+          <Icon name={view.showDismissed ? "EyeOff" : "Eye"} size={13} color={theme.colors.foregroundMuted} />
+          <Text style={styles.muted}>
+            Убрано с доски: {dismissedCount} · {view.showDismissed ? "спрятать" : "показать"}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 

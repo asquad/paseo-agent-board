@@ -97,6 +97,7 @@ export const viewSettings = defineSettings({
       descending: true,
     }),
     noTaskOpen: z.boolean().default(false),
+    showDismissed: z.boolean().default(false),
   }),
 });
 
@@ -375,6 +376,21 @@ export const setNoteRpc = defineRpc({
   name: "notes.set",
   input: z.object({ key: z.string().min(1), text: z.string().max(20000) }),
   output: z.object({ notes: z.array(NoteSchema) }),
+});
+
+export const DismissedSchema = z.object({ key: z.string(), at: z.string() });
+export type Dismissed = z.infer<typeof DismissedSchema>;
+
+export const listDismissedRpc = defineRpc({
+  name: "dismissed.list",
+  input: z.object({}),
+  output: z.object({ dismissed: z.array(DismissedSchema) }),
+});
+
+export const setDismissedRpc = defineRpc({
+  name: "dismissed.set",
+  input: z.object({ keys: z.array(z.string()).min(1), dismissed: z.boolean() }),
+  output: z.object({ dismissed: z.array(DismissedSchema) }),
 });
 
 export const launchIntakeRpc = defineRpc({

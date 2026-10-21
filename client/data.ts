@@ -2,7 +2,7 @@ import type { PaseoAgent, PaseoWorkspace } from "@getpaseo/client";
 import { usePaseo, useRpc, useSettings } from "@getpaseo/plugin/client";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { agentReposRpc, boardSettings, cleanupJobsRpc, listAssignmentsRpc, listNotesRpc, itemKey, listTodosRpc, lookupItemsRpc, reposRpc, runsRpc, type Item } from "../shared/contracts";
+import { agentReposRpc, boardSettings, cleanupJobsRpc, listAssignmentsRpc, listDismissedRpc, listNotesRpc, itemKey, listTodosRpc, lookupItemsRpc, reposRpc, runsRpc, type Item } from "../shared/contracts";
 import { buildWork, workMetaKeys } from "../shared/work";
 import { buildTasks, INTAKE_LABEL, type BoardAgent, type BoardWorkspace } from "../shared/model";
 
@@ -276,6 +276,12 @@ export function useLatestReport(agentId: string, updatedAt: string) {
     },
     staleTime: 30_000,
   });
+}
+
+export function useDismissed() {
+  const list = useRpc(listDismissedRpc);
+  const dismissed = useQuery({ queryKey: ["dismissed"], queryFn: () => list({}), staleTime: 60_000 });
+  return useMemo(() => new Map((dismissed.data?.dismissed ?? []).map((entry) => [entry.key, entry.at])), [dismissed.data]);
 }
 
 export function useNotes() {
