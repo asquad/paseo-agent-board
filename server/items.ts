@@ -1,4 +1,5 @@
 import { execCommand } from "@getpaseo/plugin/server";
+import { execFile } from "node:child_process";
 import { itemKey, PR_STATES, type Item } from "../shared/contracts";
 import { parseReference } from "../shared/actions";
 
@@ -62,6 +63,7 @@ async function search(kind: "pr" | "issue", repos: readonly string[], { query, l
     labelColors: Object.fromEntries((row.labels ?? []).flatMap((label) => (label.color ? [[label.name, label.color]] : []))),
     state: "open" as const,
     baseRef: kind === "pr" ? (base ?? null) : null,
+    linkedPrs: [],
   }));
 }
 
@@ -109,6 +111,54 @@ interface IssueResponse {
   pull_request?: { merged_at?: string | null } | null;
 }
 
+interface LinkedPrNode {
+  number: number;
+  url: string;
+  state: string;
+  isDraft: boolean;
+  baseRefName: string | null;
+  repository: { nameWithOwner: string };
+}
+
+const LINKED_PRS_QUERY = `query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
+        nodes { number url state isDraft baseRefName repository { nameWithOwner } }
+      }
+    }
+  }
+}`;
+
+function ghDirect(args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile("gh", args, { timeout: 30000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) reject(new Error(String(stderr || error.message).trim()));
+      else resolve(stdout);
+    });
+  });
+}
+
+async function linkedPrs(repo: string, number: number): Promise<Item["linkedPrs"]> {
+  const [owner, name] = repo.split("/");
+  try {
+    const output = await ghDirect(["api", "graphql", "-f", `query=${LINKED_PRS_QUERY}`, "-F", `owner=${owner}`, "-F", `name=${name}`, "-F", `number=${number}`]);
+    const nodes = (JSON.parse(output) as {
+      data?: { repository?: { issue?: { closedByPullRequestsReferences?: { nodes?: LinkedPrNode[] } } } };
+    }).data?.repository?.issue?.closedByPullRequestsReferences?.nodes ?? [];
+    return nodes.map((node) => ({
+      repo: node.repository.nameWithOwner,
+      number: node.number,
+      url: node.url,
+      state: node.state.toLowerCase(),
+      isDraft: node.isDraft,
+      baseRef: node.baseRefName,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 async function fetchItem(repo: string, number: number): Promise<Item> {
   const issue = JSON.parse(await gh(["api", `repos/${repo}/issues/${number}`])) as IssueResponse;
   const merged = Boolean(issue.pull_request?.merged_at);
@@ -135,6 +185,7 @@ async function fetchItem(repo: string, number: number): Promise<Item> {
     ),
     state: merged ? "merged" : issue.state,
     baseRef,
+    linkedPrs: issue.pull_request ? [] : await linkedPrs(repo, number),
   };
   cache.set(itemKey(repo, number), { item, at: Date.now() });
   return item;

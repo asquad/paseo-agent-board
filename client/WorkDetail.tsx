@@ -579,7 +579,12 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
             style={styles.headerRow}
           >
             <Icon name="GitPullRequest" size={13} color={theme.colors.accent} />
-            <Text style={[styles.muted, { color: theme.colors.accent }]}>PR #{work.pr}</Text>
+            <Text style={[styles.muted, { color: theme.colors.accent }]}>
+              PR #{work.pr}
+              {work.linkedPr && work.linkedPr.number === work.pr
+                ? ` · ${work.linkedPr.state === "merged" ? "смёржен" : work.linkedPr.state === "closed" ? "закрыт" : work.linkedPr.isDraft ? "черновик" : "открыт"}`
+                : ""}
+            </Text>
           </Pressable>
         ) : null}
         {work.author ? <Text style={styles.muted}>от {work.author}</Text> : null}

@@ -22,6 +22,7 @@ export interface WorkItem {
   labels: string[];
   labelColors: Record<string, string>;
   baseRef: string | null;
+  linkedPr: Item["linkedPrs"][number] | null;
   author: string | null;
   status: WorkStatus;
   statusText: string;
@@ -428,6 +429,9 @@ function finish(
   const details = draft.number !== null && draft.repo ? (meta.get(itemKey(draft.repo, draft.number)) ?? null) : null;
   const prMeta = draft.run?.pr != null && draft.repo ? (meta.get(itemKey(draft.repo, draft.run.pr)) ?? null) : null;
   const statusMeta = draft.run?.kind === "issue" && prMeta ? prMeta : details;
+  const linkedCandidates = (details?.linkedPrs ?? []).filter((pr) => !draft.repo || pr.repo.toLowerCase() === draft.repo.toLowerCase());
+  const linked =
+    linkedCandidates.find((pr) => pr.state === "open") ?? linkedCandidates.find((pr) => pr.state === "merged") ?? linkedCandidates[0] ?? null;
   const workspaces = [...draft.workspaces]
     .map((id) => allWorkspaces.get(id))
     .filter((workspace): workspace is BoardWorkspace => Boolean(workspace));
@@ -473,13 +477,14 @@ function finish(
     loose: draft.loose,
     repo: draft.repo,
     number: draft.number,
-    pr: draft.run?.pr ?? (details?.kind === "pr" ? details.number : null),
+    pr: draft.run?.pr ?? (details?.kind === "pr" ? details.number : (linked?.number ?? null)),
     repos: itemRepos,
     title,
     url: details?.url ?? draft.todo?.url ?? null,
     labels: details?.labels ?? [],
     labelColors: details?.labelColors ?? {},
-    baseRef: prMeta?.baseRef ?? details?.baseRef ?? null,
+    baseRef: prMeta?.baseRef ?? details?.baseRef ?? linked?.baseRef ?? null,
+    linkedPr: linked,
     author: details?.author ?? null,
     sentAt: sent.sort()[0] ?? [...activity].sort()[0] ?? "",
     updatedAt: [...activity].sort().at(-1) ?? "",
@@ -559,6 +564,9 @@ export function workNumber(item: WorkItem): { repo: string; number: number } | n
 export function formatWorkNumbers(item: WorkItem, limit = 3): string {
   const numbers = workNumbers(item);
   if (!numbers.length) return "—";
+  if (numbers.length === 1 && item.kind === "issue" && item.pr !== null && item.pr !== numbers[0].number) {
+    return `#${numbers[0].number} → #${item.pr}`;
+  }
   const repos = new Set(numbers.map((entry) => entry.repo.toLowerCase()));
   const label = (entry: { repo: string; number: number }) =>
     repos.size > 1 ? `${entry.repo.split("/").pop()} #${entry.number}` : `#${entry.number}`;

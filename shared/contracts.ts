@@ -205,6 +205,18 @@ export const ItemSchema = z.object({
   labelColors: z.record(z.string(), z.string()).default({}),
   state: z.enum(["open", "closed", "merged"]).default("open"),
   baseRef: z.string().nullable().default(null),
+  linkedPrs: z
+    .array(
+      z.object({
+        repo: z.string(),
+        number: z.number().int(),
+        url: z.string(),
+        state: z.string(),
+        isDraft: z.boolean(),
+        baseRef: z.string().nullable(),
+      }),
+    )
+    .default([]),
 });
 export type Item = z.infer<typeof ItemSchema>;
 
