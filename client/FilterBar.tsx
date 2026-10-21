@@ -47,7 +47,7 @@ export function Picker({
     onChange(selected.includes(value) ? selected.filter((current) => current !== value) : [...selected, value]);
   return (
     <Modal title={field.label} open onOpenChange={(open) => (open ? undefined : onClose())}>
-      <Modal.Content scrollable={false} contentContainerStyle={{ padding: 16, gap: 10 }}>
+      <Modal.Content scrollable={false} style={{ flex: 1 }} contentContainerStyle={{ flex: 1, padding: 16, gap: 10 }}>
         {field.options.length > 8 ? (
           <TextInput
             accessibilityLabel={`Поиск: ${field.label}`}
@@ -58,7 +58,7 @@ export function Picker({
             style={styles.input}
           />
         ) : null}
-        <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 2 }}>
+        <ScrollView style={{ flex: 1, minHeight: 120 }} contentContainerStyle={{ gap: 2 }}>
           {options.length ? null : <Text style={styles.muted}>Нет вариантов.</Text>}
           {options.map((option) => {
             const checked = selected.includes(option.value);
