@@ -1,0 +1,9 @@
+{
+  "id": "agent-board",
+  "name": "Agent board",
+  "description": "One board for the agents of every repository in a workspace folder, with /deliver runs, scores and PR status.",
+  "media": [],
+  "requirements": {
+    "paseo": ">=0.12.0-beta.3"
+  }
+}
