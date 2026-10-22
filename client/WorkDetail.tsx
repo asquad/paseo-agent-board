@@ -512,15 +512,24 @@ function Belonging({
   );
 }
 
+function workspaceRole(work: WorkItem, workspaceId: string): string | null {
+  if (work.tasks.some((task) => task.agent.workspaceId === workspaceId)) return "координатор";
+  const workers = work.tasks.flatMap((task) => task.workers).filter((worker) => worker.workspaceId === workspaceId);
+  if (workers.length) return `рабочая копия, субагентов: ${workers.length}`;
+  return null;
+}
+
 function WorkspaceRow({
   workspace,
   running,
+  role,
   styles,
   theme,
   navigation,
 }: {
   workspace: BoardWorkspace;
   running: boolean;
+  role: string | null;
   styles: Styles;
   theme: PluginTheme;
   navigation: Navigation | undefined;
@@ -541,7 +550,9 @@ function WorkspaceRow({
           {workspace.title ?? workspace.name}
         </Text>
         <Text style={styles.muted} numberOfLines={1}>
-          {workspace.branch ?? workspace.directory}
+          {[role, workspace.kind === "worktree" ? `worktree · ${workspace.branch ?? workspace.directory}` : workspace.directory]
+            .filter(Boolean)
+            .join(" · ")}
         </Text>
       </View>
       {navigation ? (
@@ -672,6 +683,7 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
               running={work.tasks.some((task) =>
                 [task.agent, ...task.workers].some((agent) => agent.workspaceId === workspace.id && agent.status === "running"),
               )}
+              role={workspaceRole(work, workspace.id)}
               styles={styles}
               theme={theme}
               navigation={navigation}
