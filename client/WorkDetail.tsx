@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import {
+  archiveRunsRpc,
   approveIntakeRpc,
   archiveTaskRpc,
   DELIVER_ACTION_ID,
@@ -383,7 +384,30 @@ function TaskArchive({ work, styles, theme }: { work: WorkItem; styles: Styles; 
     },
     onError: (error) => toast.error((error as Error).message),
   });
-  if (!agentIds.length && !emptyWorkspaces.length) return null;
+  const archiveRun = useRpc(archiveRunsRpc);
+  const runMutation = useMutation({
+    mutationFn: () => archiveRun({ runs: work.runs }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["archived-runs"] });
+      toast.show("Задача архивирована", { variant: "success" });
+    },
+    onError: (error) => toast.error((error as Error).message),
+  });
+  if (!agentIds.length && !emptyWorkspaces.length) {
+    if (!work.runs.length) return null;
+    return (
+      <View style={styles.headerRow}>
+        <Button
+          styles={styles}
+          theme={theme}
+          icon="Archive"
+          label="Архивировать задачу"
+          disabled={runMutation.isPending}
+          onPress={() => runMutation.mutate()}
+        />
+      </View>
+    );
+  }
   return (
     <View style={{ gap: 4 }}>
       <View style={[styles.headerRow, { flexWrap: "wrap" }]}>

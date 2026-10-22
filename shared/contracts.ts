@@ -407,6 +407,21 @@ export const setNoteRpc = defineRpc({
   output: z.object({ notes: z.array(NoteSchema) }),
 });
 
+export const ArchivedRunSchema = z.object({ runId: z.string(), updatedAt: z.string() });
+export type ArchivedRun = z.infer<typeof ArchivedRunSchema>;
+
+export const listArchivedRunsRpc = defineRpc({
+  name: "runs.archived",
+  input: z.object({}),
+  output: z.object({ runs: z.array(ArchivedRunSchema) }),
+});
+
+export const archiveRunsRpc = defineRpc({
+  name: "runs.archive",
+  input: z.object({ runs: z.array(ArchivedRunSchema).min(1) }),
+  output: z.object({ runs: z.array(ArchivedRunSchema) }),
+});
+
 export const DismissedSchema = z.object({ key: z.string(), at: z.string() });
 export type Dismissed = z.infer<typeof DismissedSchema>;
 

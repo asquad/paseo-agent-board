@@ -2,6 +2,8 @@ import type { PluginServerContext } from "@getpaseo/plugin/server";
 import {
   addTodoRpc,
   listDismissedRpc,
+  listArchivedRunsRpc,
+  archiveRunsRpc,
   setDismissedRpc,
   listNotesRpc,
   setNoteRpc,
@@ -42,6 +44,7 @@ import { readRuns } from "./server/runs";
 import { addTodo, listTodos, removeTodo } from "./server/todo";
 import { listNotes, setNote } from "./server/notes";
 import { listDismissed, setDismissed } from "./server/dismissed";
+import { archiveRuns, listArchivedRuns } from "./server/archivedRuns";
 
 export default function contribute(server: PluginServerContext) {
   const settings = server.registerSettings(boardSettings);
@@ -113,6 +116,8 @@ export default function contribute(server: PluginServerContext) {
   server.handle(setAssignmentsRpc, ({ workspaceIds, repos, link }) => setAssignments(workspaceIds, { repos, link }));
 
   server.handle(listDismissedRpc, () => listDismissed());
+  server.handle(listArchivedRunsRpc, () => listArchivedRuns());
+  server.handle(archiveRunsRpc, ({ runs }) => archiveRuns(runs));
   server.handle(setDismissedRpc, ({ keys, dismissed }) => setDismissed(keys, dismissed));
   server.handle(listNotesRpc, () => listNotes());
   server.handle(setNoteRpc, ({ key, text }) => setNote(key, text));

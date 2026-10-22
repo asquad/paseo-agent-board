@@ -31,6 +31,7 @@ export interface WorkItem {
   updatedAt: string;
   pinned: boolean;
   run: RunState | null;
+  runs: { runId: string; updatedAt: string }[];
   todo: Todo | null;
   meta: Item | null;
   tasks: Task[];
@@ -93,6 +94,7 @@ interface Draft {
   key: string;
   loose: boolean;
   run: RunState | null;
+  runs: RunState[];
   todo: Todo | null;
   tasks: Task[];
   workspaces: Set<string>;
@@ -230,8 +232,8 @@ export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPat
   const byAgent = new Map<string, Draft>();
   const byWorkspace = new Map<string, Draft>();
 
-  const create = (draft: Omit<Draft, "workspaces" | "tasks" | "run" | "todo"> & Partial<Draft>): Draft => {
-    const full: Draft = { run: null, todo: null, tasks: [], workspaces: new Set(), ...draft };
+  const create = (draft: Omit<Draft, "workspaces" | "tasks" | "run" | "runs" | "todo"> & Partial<Draft>): Draft => {
+    const full: Draft = { run: null, runs: [], todo: null, tasks: [], workspaces: new Set(), ...draft };
     drafts.push(full);
     return full;
   };
@@ -251,7 +253,7 @@ export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPat
 
   for (const run of [...runs].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))) {
     if (run.kind === "scratch") {
-      const draft = create({ key: `scratch:${run.runId}`, loose: false, repo: null, number: null, kind: "scratch", run });
+      const draft = create({ key: `scratch:${run.runId}`, loose: false, repo: null, number: null, kind: "scratch", run, runs: [run] });
       if (run.coordinatorAgentId) byAgent.set(run.coordinatorAgentId, draft);
       continue;
     }
@@ -259,6 +261,7 @@ export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPat
     const existing = byKey.get(itemKey(run.repo, run.number)) ?? (run.pr !== null ? byKey.get(itemKey(run.repo, run.pr)) : undefined);
     const draft = existing ?? keyed(run.repo, run.number, run.kind === "pr" ? "pr" : "issue");
     if (!draft.run) draft.run = run;
+    draft.runs.push(run);
     if (run.pr !== null && !byKey.has(itemKey(run.repo, run.pr))) byKey.set(itemKey(run.repo, run.pr), draft);
     if (run.coordinatorAgentId) byAgent.set(run.coordinatorAgentId, draft);
   }
@@ -521,6 +524,7 @@ function finish(
     updatedAt: [...activity].sort().at(-1) ?? "",
     pinned: workspaces.some((workspace) => Boolean(workspace.pinnedAt)),
     run: draft.run,
+    runs: draft.runs.map((run) => ({ runId: run.runId, updatedAt: run.updatedAt })),
     todo: draft.todo,
     meta: details,
     tasks: draft.tasks,

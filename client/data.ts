@@ -2,7 +2,7 @@ import type { PaseoAgent, PaseoWorkspace } from "@getpaseo/client";
 import { usePaseo, useRpc, useSettings } from "@getpaseo/plugin/client";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { agentReposRpc, boardSettings, cleanupJobsRpc, listAssignmentsRpc, listDismissedRpc, listNotesRpc, itemKey, listTodosRpc, lookupItemsRpc, reposRpc, runsRpc, type Item } from "../shared/contracts";
+import { agentReposRpc, listArchivedRunsRpc, boardSettings, cleanupJobsRpc, listAssignmentsRpc, listDismissedRpc, listNotesRpc, itemKey, listTodosRpc, lookupItemsRpc, reposRpc, runsRpc, type Item } from "../shared/contracts";
 import { buildWork, workMetaKeys } from "../shared/work";
 import { buildTasks, INTAKE_LABEL, type BoardAgent, type BoardWorkspace } from "../shared/model";
 
@@ -108,6 +108,7 @@ export function useBoard() {
   const listAssignments = useRpc(listAssignmentsRpc);
   const live = useLiveAgents();
   const freshMeta = useRef(false);
+  const listArchived = useRpc(listArchivedRunsRpc);
 
   const workspaces = useQuery({
     queryKey: ["workspaces"],
@@ -123,12 +124,22 @@ export function useBoard() {
     enabled: revision !== null,
     refetchInterval: 60_000,
   });
-  const runs = useQuery({
+  const runFiles = useQuery({
     queryKey: ["runs", revision],
     queryFn: () => listRuns({}),
     enabled: revision !== null,
     refetchInterval: 5_000,
   });
+  const archivedRuns = useQuery({ queryKey: ["archived-runs"], queryFn: () => listArchived({}), staleTime: 60_000 });
+  const runs = useMemo(() => {
+    const archived = new Map((archivedRuns.data?.runs ?? []).map((entry) => [entry.runId, entry.updatedAt]));
+    if (!runFiles.data) return { data: undefined, refetch: runFiles.refetch, error: runFiles.error };
+    const visible = runFiles.data.runs.filter((run) => {
+      const at = archived.get(run.runId);
+      return !at || run.updatedAt > at;
+    });
+    return { data: { ...runFiles.data, runs: visible }, refetch: runFiles.refetch, error: runFiles.error };
+  }, [runFiles.data, runFiles.refetch, runFiles.error, archivedRuns.data]);
 
   const tasks = useMemo(
     () =>
