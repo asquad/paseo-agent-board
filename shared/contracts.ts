@@ -344,7 +344,12 @@ export const undraftRpc = defineRpc({
 
 export const approveIntakeRpc = defineRpc({
   name: "scratch.approve",
-  input: z.object({ intakeAgentId: z.string().nullable(), items: z.array(ItemSchema).min(1), instructions: z.string().default("") }),
+  input: z.object({
+    intakeAgentId: z.string().nullable(),
+    items: z.array(ItemSchema).min(1),
+    instructions: z.string().default(""),
+    notify: z.boolean().default(false),
+  }),
   output: z.object({
     started: z.array(z.object({ key: z.string(), agentId: z.string().nullable(), prompt: z.string() })),
     failed: z.array(z.object({ key: z.string(), error: z.string() })),
@@ -353,7 +358,7 @@ export const approveIntakeRpc = defineRpc({
 
 export const rejectIntakeItemRpc = defineRpc({
   name: "scratch.reject",
-  input: z.object({ intakeAgentId: z.string().nullable(), item: ItemSchema }),
+  input: z.object({ intakeAgentId: z.string().nullable(), item: ItemSchema, notify: z.boolean().default(false) }),
   output: z.object({ ok: z.boolean(), draftLabel: z.string() }),
 });
 

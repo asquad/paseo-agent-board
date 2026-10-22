@@ -106,6 +106,7 @@ function IntakeCard({
   const toast = useToast();
   const run = work.run;
   const coordinatorId = work.tasks[0]?.agent.id ?? run?.coordinatorAgentId ?? null;
+  const waiting = run?.state === "blocked" && coordinatorId !== null;
   const pendingKeys = work.pending.map((item) => `${item.repo}#${item.number}`);
   const [selected, setSelected] = useState<string[] | null>(null);
   const chosen = selected ?? pendingKeys;
@@ -121,6 +122,7 @@ function IntakeCard({
     mutationFn: () =>
       approve({
         intakeAgentId: coordinatorId,
+        notify: waiting,
         items: work.pending.filter((item) => chosen.includes(`${item.repo}#${item.number}`)),
         instructions: instructions.trim(),
       }),
@@ -133,7 +135,7 @@ function IntakeCard({
     onError: (error) => toast.error((error as Error).message),
   });
   const rejectMutation = useMutation({
-    mutationFn: (item: Item) => reject({ intakeAgentId: coordinatorId, item }),
+    mutationFn: (item: Item) => reject({ intakeAgentId: coordinatorId, item, notify: waiting }),
     onSuccess: () => {
       setConfirmReject(null);
       refresh();

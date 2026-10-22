@@ -74,9 +74,9 @@ export function ScratchDialog({ open, onOpenChange, theme, styles, onLaunched }:
     <Modal title="Deliver from scratch" open={open} onOpenChange={onOpenChange}>
       <Modal.Content>
         <Text style={styles.muted}>
-          Опишите задачу своими словами. Координатор из корня экосистемы разберёт её по репозиториям и опубликует
-          issues с меткой draft. Дальше всё на доске: проверите issues, подтвердите нужные (там же можно задать
-          параметры deliver), и по каждой запустится /deliver.
+          Опишите задачу своими словами. Координатор из корня экосистемы разберёт её по репозиториям и создаст
+          issues. Дальше всё на доске: проверите их, подтвердите нужные (там же можно задать параметры deliver),
+          и по каждой запустится /deliver.
         </Text>
         <TextInput
           accessibilityLabel="Описание задачи"

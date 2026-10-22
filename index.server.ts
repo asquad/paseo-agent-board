@@ -114,16 +114,16 @@ export default function contribute(server: PluginServerContext) {
   server.handle(addTodoRpc, (item) => addTodo(item));
   server.handle(removeTodoRpc, ({ repo, number }) => removeTodo(repo, number));
 
-  server.handle(approveIntakeRpc, async ({ intakeAgentId, items, instructions }, { paseo }) => {
+  server.handle(approveIntakeRpc, async ({ intakeAgentId, items, instructions, notify }, { paseo }) => {
     const { rootPath, title, actions, draftLabel } = await values();
     const deliver = actions.find((action) => action.id === DELIVER_ACTION_ID);
     if (!deliver) throw new Error("The Deliver action is missing; add it back in the board settings.");
     const board = await listRepos(paseo, rootPath, title);
-    return approveIntake(paseo, { intakeAgentId, items, instructions, draftLabel, deliver, repos: board.repos, rootPath: board.rootPath });
+    return approveIntake(paseo, { intakeAgentId, notify, items, instructions, draftLabel, deliver, repos: board.repos, rootPath: board.rootPath });
   });
-  server.handle(rejectIntakeItemRpc, async ({ intakeAgentId, item }, { paseo }) => {
+  server.handle(rejectIntakeItemRpc, async ({ intakeAgentId, item, notify }, { paseo }) => {
     const { draftLabel } = await values();
-    return rejectIntakeItem(paseo, intakeAgentId, item, draftLabel);
+    return rejectIntakeItem(paseo, intakeAgentId, item, draftLabel, notify);
   });
   server.handle(requestIntakeChangesRpc, ({ intakeAgentId, text }, { paseo }) => requestIntakeChanges(paseo, intakeAgentId, text));
 

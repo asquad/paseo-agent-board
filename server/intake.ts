@@ -6,6 +6,7 @@ import { runAction } from "./launch";
 
 interface ApproveInput {
   intakeAgentId: string | null;
+  notify: boolean;
   items: Item[];
   instructions: string;
   draftLabel: string;
@@ -42,12 +43,12 @@ export async function approveIntake(paseo: PaseoApi, input: ApproveInput) {
       failed.push({ key, error: (error as Error).message.split("\n")[0] });
     }
   }
-  if (started.length) {
+  if (started.length && input.notify) {
     await notify(
       paseo,
       input.intakeAgentId,
       [
-        "The user approved these issues on the Agent board. The board removed the draft label and started a deliver coordinator for each:",
+        "The user approved these issues on the Agent board. The board started a deliver coordinator for each:",
         ...started.map((entry) => `- ${entry.key} (deliver agent ${entry.agentId ?? "unknown"})`),
         ...(failed.length ? ["Not started:", ...failed.map((entry) => `- ${entry.key}: ${entry.error}`)] : []),
         "Do not start deliver for them again. Record them as delivering with their deliver agent IDs in the run state, and finish the run once no other issue of this run awaits a decision.",
@@ -57,10 +58,10 @@ export async function approveIntake(paseo: PaseoApi, input: ApproveInput) {
   return { started, failed };
 }
 
-export async function rejectIntakeItem(paseo: PaseoApi, intakeAgentId: string | null, item: Item, draftLabel: string) {
+export async function rejectIntakeItem(paseo: PaseoApi, intakeAgentId: string | null, item: Item, draftLabel: string, shouldNotify: boolean) {
   await execCommand("gh", ["issue", "close", String(item.number), "-R", item.repo, "--reason", "not planned"], { timeout: 30000 });
   forgetItem(item.repo, item.number);
-  await notify(
+  if (shouldNotify) await notify(
     paseo,
     intakeAgentId,
     `The user rejected ${item.repo}#${item.number} on the Agent board; the board closed it as not planned. Do not deliver it; record it as cancelled in the run state.`,
@@ -71,6 +72,6 @@ export async function rejectIntakeItem(paseo: PaseoApi, intakeAgentId: string | 
 export async function requestIntakeChanges(paseo: PaseoApi, intakeAgentId: string, text: string) {
   await paseo.agents
     .ref(intakeAgentId)
-    .send(`Change requests for the draft issues from the user (Agent board):\n\n${text}\n\nEdit the issues accordingly, report what changed, and wait for confirmation again.`);
+    .send(`Change requests for the issues from the user (Agent board):\n\n${text}\n\nEdit the issues accordingly and report what changed.`);
   return { ok: true };
 }
