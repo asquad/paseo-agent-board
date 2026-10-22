@@ -206,6 +206,7 @@ export const ItemSchema = z.object({
   labelColors: z.record(z.string(), z.string()).default({}),
   state: z.enum(["open", "closed", "merged"]).default("open"),
   baseRef: z.string().nullable().default(null),
+  reviewDecision: z.string().nullable().default(null),
   linkedPrs: z
     .array(
       z.object({
@@ -215,6 +216,7 @@ export const ItemSchema = z.object({
         state: z.string(),
         isDraft: z.boolean(),
         baseRef: z.string().nullable(),
+        reviewDecision: z.string().nullable().default(null),
       }),
     )
     .default([]),

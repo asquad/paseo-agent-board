@@ -21,6 +21,7 @@ import type { WorkItem } from "../shared/work";
 import { ActionButton, ActionButtons } from "./ActionButtons";
 import { FilterBar, type FilterField } from "./FilterBar";
 import { LabelList, labelColor } from "./LabelChip";
+import { PrBadge } from "./PrBadge";
 import { SortControl } from "./SortControl";
 import { workStatusColor, type Styles } from "./styles";
 import { useTodoToggle } from "./view";
@@ -186,9 +187,14 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
             onPress={() => void openExternalUrl(item.url)}
             style={{ flex: 1, minWidth: 160, gap: 2 }}
           >
-            <Text style={styles.text} numberOfLines={1}>
-              {item.title}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={[styles.text, { flexShrink: 1 }]} numberOfLines={1}>
+                {item.title}
+              </Text>
+              {item.kind === "pr" ? (
+                <PrBadge theme={theme} pr={{ state: item.state, isDraft: item.isDraft, reviewDecision: item.reviewDecision }} />
+              ) : null}
+            </View>
             <Text style={styles.muted} numberOfLines={1}>
               {item.repo.split("/").pop()} #{item.number}
               {item.author ? ` · ${item.author}` : ""}

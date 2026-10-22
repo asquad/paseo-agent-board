@@ -3,6 +3,7 @@ import { FlatList, Icon } from "@getpaseo/plugin/client/react-native";
 import { Pressable, Text, View } from "react-native";
 import { formatAge } from "../shared/model";
 import { formatWorkNumbers, type SortColumn, type WorkItem } from "../shared/work";
+import { PrBadge } from "./PrBadge";
 import { workStatusColor, type Styles } from "./styles";
 
 interface Props {
@@ -90,6 +91,7 @@ function Row({
           <Text style={[styles.text, { flex: 1 }, item.status === "closed" ? { color: theme.colors.foregroundMuted } : null]} numberOfLines={1}>
             {item.title}
           </Text>
+          {item.prReview ? <PrBadge theme={theme} pr={item.prReview} /> : null}
           {note ? <Icon name="StickyNote" size={12} color={theme.colors.statusWarning} /> : null}
         </View>
         {note ? (

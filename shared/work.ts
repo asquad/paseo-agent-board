@@ -23,6 +23,7 @@ export interface WorkItem {
   labelColors: Record<string, string>;
   baseRef: string | null;
   linkedPr: Item["linkedPrs"][number] | null;
+  prReview: PrReviewState | null;
   author: string | null;
   status: WorkStatus;
   statusText: string;
@@ -53,6 +54,12 @@ export const PHASES: { id: IntakePhase; label: string }[] = [
   { id: "delivery", label: "Delivery" },
   { id: "done", label: "Готово" },
 ];
+
+export interface PrReviewState {
+  state: string;
+  isDraft: boolean;
+  reviewDecision: string | null;
+}
 
 export const STATUS_LABELS: Record<WorkStatus, string> = {
   attention: "Нужно вмешательство",
@@ -501,6 +508,14 @@ function finish(
     labelColors: details?.labelColors ?? {},
     baseRef: prMeta?.baseRef ?? details?.baseRef ?? linked?.baseRef ?? null,
     linkedPr: linked,
+    prReview:
+      details?.kind === "pr"
+        ? { state: details.state, isDraft: details.isDraft, reviewDecision: details.reviewDecision }
+        : prMeta
+          ? { state: prMeta.state, isDraft: prMeta.isDraft, reviewDecision: prMeta.reviewDecision }
+          : linked
+            ? { state: linked.state, isDraft: linked.isDraft, reviewDecision: linked.reviewDecision }
+            : null,
     author: details?.author ?? null,
     sentAt: sent.sort()[0] ?? [...activity].sort()[0] ?? "",
     updatedAt: [...activity].sort().at(-1) ?? "",

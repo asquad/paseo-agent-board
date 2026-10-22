@@ -63,6 +63,7 @@ async function search(kind: "pr" | "issue", repos: readonly string[], { query, l
     labelColors: Object.fromEntries((row.labels ?? []).flatMap((label) => (label.color ? [[label.name, label.color]] : []))),
     state: "open" as const,
     baseRef: kind === "pr" ? (base ?? null) : null,
+    reviewDecision: null,
     linkedPrs: [],
   }));
 }
@@ -89,14 +90,67 @@ export async function searchItems(
   const issueSearch = kind !== "pr" && !bases.length ? search("issue", scope, options) : Promise.resolve([]);
   const results = [...(await Promise.all(prSearches)).flat(), ...(await issueSearch)];
   const seen = new Set<string>();
-  return results
-    .filter((item) => {
-      const key = itemKey(item.repo, item.number);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
+  const unique = results.filter((item) => {
+    const key = itemKey(item.repo, item.number);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const reviews = await prReviews(unique.filter((item) => item.kind === "pr"));
+  return unique
+    .map((item) => {
+      const review = reviews.get(itemKey(item.repo, item.number));
+      return review ? { ...item, reviewDecision: review.reviewDecision, baseRef: item.baseRef ?? review.baseRef, isDraft: review.isDraft } : item;
     })
     .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+}
+
+interface PrReview {
+  reviewDecision: string | null;
+  isDraft: boolean;
+  baseRef: string | null;
+}
+
+const REVIEW_TTL_MS = 2 * 60 * 1000;
+const REVIEW_BATCH = 40;
+const reviewCache = new Map<string, { review: PrReview; at: number }>();
+
+async function prReviews(prs: readonly { repo: string; number: number }[]): Promise<Map<string, PrReview>> {
+  const result = new Map<string, PrReview>();
+  const now = Date.now();
+  const pending = prs.filter((pr) => {
+    const cached = reviewCache.get(itemKey(pr.repo, pr.number));
+    if (cached && now - cached.at < REVIEW_TTL_MS) {
+      result.set(itemKey(pr.repo, pr.number), cached.review);
+      return false;
+    }
+    return /^[\w.-]+\/[\w.-]+$/.test(pr.repo);
+  });
+  for (let start = 0; start < pending.length; start += REVIEW_BATCH) {
+    const batch = pending.slice(start, start + REVIEW_BATCH);
+    const fields = batch
+      .map((pr, index) => {
+        const [owner, name] = pr.repo.split("/");
+        return `p${index}: repository(owner: "${owner}", name: "${name}") { pullRequest(number: ${pr.number}) { reviewDecision isDraft baseRefName } }`;
+      })
+      .join("\n");
+    try {
+      const output = await ghDirect(["api", "graphql", "-f", `query=query {\n${fields}\n}`]);
+      const data = (JSON.parse(output) as {
+        data?: Record<string, { pullRequest?: { reviewDecision: string | null; isDraft: boolean; baseRefName: string | null } | null } | null>;
+      }).data ?? {};
+      batch.forEach((pr, index) => {
+        const node = data[`p${index}`]?.pullRequest;
+        if (!node) return;
+        const review = { reviewDecision: node.reviewDecision ?? null, isDraft: node.isDraft, baseRef: node.baseRefName ?? null };
+        reviewCache.set(itemKey(pr.repo, pr.number), { review, at: Date.now() });
+        result.set(itemKey(pr.repo, pr.number), review);
+      });
+    } catch {
+      // Review markers are optional; the list works without them.
+    }
+  }
+  return result;
 }
 
 interface IssueResponse {
@@ -117,6 +171,7 @@ interface LinkedPrNode {
   state: string;
   isDraft: boolean;
   baseRefName: string | null;
+  reviewDecision: string | null;
   repository: { nameWithOwner: string };
 }
 
@@ -124,7 +179,7 @@ const LINKED_PRS_QUERY = `query($owner: String!, $name: String!, $number: Int!) 
   repository(owner: $owner, name: $name) {
     issue(number: $number) {
       closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
-        nodes { number url state isDraft baseRefName repository { nameWithOwner } }
+        nodes { number url state isDraft baseRefName reviewDecision repository { nameWithOwner } }
       }
     }
   }
@@ -153,6 +208,7 @@ async function linkedPrs(repo: string, number: number): Promise<Item["linkedPrs"
       state: node.state.toLowerCase(),
       isDraft: node.isDraft,
       baseRef: node.baseRefName,
+      reviewDecision: node.reviewDecision ?? null,
     }));
   } catch {
     return [];
@@ -162,14 +218,9 @@ async function linkedPrs(repo: string, number: number): Promise<Item["linkedPrs"
 async function fetchItem(repo: string, number: number): Promise<Item> {
   const issue = JSON.parse(await gh(["api", `repos/${repo}/issues/${number}`])) as IssueResponse;
   const merged = Boolean(issue.pull_request?.merged_at);
-  let baseRef: string | null = null;
-  if (issue.pull_request) {
-    try {
-      baseRef = (JSON.parse(await gh(["api", `repos/${repo}/pulls/${number}`, "--jq", "{base: .base.ref}"])) as { base?: string }).base ?? null;
-    } catch {
-      baseRef = null;
-    }
-  }
+  reviewCache.delete(itemKey(repo, number));
+  const review = issue.pull_request ? ((await prReviews([{ repo, number }])).get(itemKey(repo, number)) ?? null) : null;
+  const baseRef = review?.baseRef ?? null;
   const item: Item = {
     repo,
     number: issue.number,
@@ -185,6 +236,7 @@ async function fetchItem(repo: string, number: number): Promise<Item> {
     ),
     state: merged ? "merged" : issue.state,
     baseRef,
+    reviewDecision: review?.reviewDecision ?? null,
     linkedPrs: issue.pull_request ? [] : await linkedPrs(repo, number),
   };
   cache.set(itemKey(repo, number), { item, at: Date.now() });

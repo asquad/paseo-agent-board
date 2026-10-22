@@ -21,6 +21,7 @@ import { formatAge, type BoardWorkspace } from "../shared/model";
 import { PHASES, type IntakePhase, type WorkItem } from "../shared/work";
 import { ActionButtons } from "./ActionButtons";
 import { LabelList } from "./LabelChip";
+import { PrBadge } from "./PrBadge";
 import { Picker, type FilterOption } from "./FilterBar";
 import { workStatusColor, type Styles } from "./styles";
 import { AgentSection, Button, DeliverCard, type Navigation } from "./TaskDetail";
@@ -612,6 +613,9 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
             </Text>
           </Pressable>
         ) : null}
+        {work.kind === "pr" && work.prReview ? (
+          <PrBadge theme={theme} pr={work.prReview} />
+        ) : null}
         {work.pr !== null && work.pr !== work.number && work.repo ? (
           <Pressable
             accessibilityRole="link"
@@ -620,12 +624,8 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
             style={styles.headerRow}
           >
             <Icon name="GitPullRequest" size={13} color={theme.colors.accent} />
-            <Text style={[styles.muted, { color: theme.colors.accent }]}>
-              PR #{work.pr}
-              {work.linkedPr && work.linkedPr.number === work.pr
-                ? ` · ${work.linkedPr.state === "merged" ? "смёржен" : work.linkedPr.state === "closed" ? "закрыт" : work.linkedPr.isDraft ? "черновик" : "открыт"}`
-                : ""}
-            </Text>
+            <Text style={[styles.muted, { color: theme.colors.accent }]}>PR #{work.pr}</Text>
+            {work.prReview ? <PrBadge theme={theme} pr={work.prReview} /> : null}
           </Pressable>
         ) : null}
         {work.author ? <Text style={styles.muted}>от {work.author}</Text> : null}
