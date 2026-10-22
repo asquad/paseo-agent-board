@@ -1,7 +1,7 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import { openExternalUrl, useRpc } from "@getpaseo/plugin/client";
 import { FlatList, Icon, TextInput } from "@getpaseo/plugin/client/react-native";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import {
@@ -91,12 +91,28 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
     },
     500,
   );
-  const items = useQuery({
+  const items = useInfiniteQuery({
     queryKey: ["items", query],
-    queryFn: () => search(query),
-    refetchInterval: 120_000,
+    queryFn: ({ pageParam }) => search({ ...query, cursors: pageParam }),
+    initialPageParam: null as Record<string, string | null> | null,
+    getNextPageParam: (last) => (Object.values(last.cursors).some(Boolean) ? last.cursors : undefined),
     placeholderData: (previous) => previous,
   });
+  const loaded = useMemo(() => {
+    const seen = new Set<string>();
+    return (items.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .filter((item) => {
+        const key = itemKey(item.repo, item.number);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }, [items.data]);
+  const total = items.data?.pages[0]?.total ?? 0;
+  const loadMore = () => {
+    if (items.hasNextPage && !items.isFetchingNextPage) void items.fetchNextPage();
+  };
   const resolved = useQuery({
     queryKey: ["resolve", reference.trim(), filter.repos[0] ?? null],
     queryFn: () => resolve({ reference: reference.trim(), defaultRepo: filter.repos[0] ?? null }),
@@ -117,18 +133,18 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
   const list = useMemo(
     () =>
       sortItems(
-        (items.data?.items ?? []).filter((item) => filter.authors.length < 2 || (item.author && filter.authors.includes(item.author))),
+        loaded.filter((item) => filter.authors.length < 2 || (item.author && filter.authors.includes(item.author))),
         sort.column,
         sort.descending,
       ),
-    [items.data, filter.authors, sort],
+    [loaded, filter.authors, sort],
   );
 
   const fields: FilterField[] = useMemo(() => {
     const labels = new Set(filter.labels);
     const colors: Record<string, string> = {};
     const authors = new Set(filter.authors);
-    for (const item of items.data?.items ?? []) {
+    for (const item of loaded) {
       item.labels.forEach((label) => labels.add(label));
       Object.assign(colors, item.labelColors);
       if (item.author) authors.add(item.author);
@@ -164,7 +180,7 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
           .map((base) => ({ value: base, label: base })),
       },
     ];
-  }, [repos, items.data, filter.labels, filter.authors, filter.bases, work]);
+  }, [repos, loaded, filter.labels, filter.authors, filter.bases, work]);
 
   const deliver = actions.find((action) => action.id === DELIVER_ACTION_ID) ?? null;
   const others = actions.filter((action) => action.id !== DELIVER_ACTION_ID);
@@ -314,6 +330,29 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
         data={list}
         keyExtractor={(item) => itemKey(item.repo, item.number)}
         renderItem={({ item }) => renderItem(item)}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loaded.length ? (
+            <View style={[styles.row, { justifyContent: "center", gap: 10 }]}>
+              <Text style={styles.muted}>
+                Показано {list.length} из {total}
+                {items.isFetching && !items.isFetchingNextPage ? " · обновляю…" : ""}
+              </Text>
+              {items.hasNextPage ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Показать ещё"
+                  disabled={items.isFetchingNextPage}
+                  onPress={loadMore}
+                  style={[styles.button, items.isFetchingNextPage ? { opacity: 0.5 } : null]}
+                >
+                  <Text style={styles.buttonText}>{items.isFetchingNextPage ? "Загружаю…" : "Показать ещё"}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <Text style={[styles.muted, { padding: 12 }]}>
             {items.isPending ? "Загружаю открытые PR и issues…" : "Ничего не найдено."}

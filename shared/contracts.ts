@@ -234,8 +234,14 @@ export const searchItemsRpc = defineRpc({
     author: z.string().nullable().default(null),
     bases: z.array(z.string()).default([]),
     prStates: z.array(z.string()).default([]),
+    cursors: z.record(z.string(), z.string().nullable()).nullable().default(null),
   }),
-  output: z.object({ items: z.array(ItemSchema), repos: z.array(z.string()) }),
+  output: z.object({
+    items: z.array(ItemSchema),
+    repos: z.array(z.string()),
+    cursors: z.record(z.string(), z.string().nullable()),
+    total: z.number().int(),
+  }),
 });
 
 export const resolveItemRpc = defineRpc({

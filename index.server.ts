@@ -34,7 +34,8 @@ import { listAssignments, setAssignments } from "./server/assignments";
 import { archiveTask, cleanupJobs, startCleanup } from "./server/cleanup";
 import { approveIntake, rejectIntakeItem, requestIntakeChanges } from "./server/intake";
 import { readPrStatus } from "./server/github";
-import { forgetItem, lookupItems, removeLabel, resolveItem, searchItems } from "./server/items";
+import { forgetItem, lookupItems, removeLabel, resolveItem } from "./server/items";
+import { searchPage } from "./server/search";
 import { launchIntake, listProfiles, runAction } from "./server/launch";
 import { listRepos } from "./server/repos";
 import { readRuns } from "./server/runs";
@@ -69,13 +70,14 @@ export default function contribute(server: PluginServerContext) {
     return readPrStatus(repo, number);
   });
 
-  server.handle(searchItemsRpc, async ({ repos: selected, query, kind, labels, author, bases, prStates }, { paseo }) => {
+  server.handle(searchItemsRpc, async ({ repos: selected, query, kind, labels, author, bases, prStates, cursors }, { paseo }) => {
     const { rootPath, title } = await values();
     const { repos } = await listRepos(paseo, rootPath, title);
     const scope = [...new Set(repos.flatMap((candidate) => (candidate.github && !candidate.archived ? [candidate.github] : [])))];
     const wanted = new Set(selected.map((name) => name.toLowerCase()));
     const filtered = wanted.size ? scope.filter((name) => wanted.has(name.toLowerCase())) : scope;
-    return { items: await searchItems(filtered, kind, { query, labels, author, bases, prStates }), repos: scope };
+    const page = await searchPage(filtered, kind, { query, labels, author, bases, prStates }, cursors);
+    return { ...page, repos: scope };
   });
 
   server.handle(resolveItemRpc, ({ reference, defaultRepo }) => resolveItem(reference, defaultRepo));

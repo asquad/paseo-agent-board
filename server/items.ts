@@ -1,22 +1,10 @@
 import { execCommand } from "@getpaseo/plugin/server";
 import { execFile } from "node:child_process";
-import { itemKey, PR_STATES, type Item } from "../shared/contracts";
+import { itemKey, type Item } from "../shared/contracts";
 import { parseReference } from "../shared/actions";
 
-const MAX_REPOS = 30;
 const LOOKUP_TTL_MS = 5 * 60 * 1000;
 const LOOKUP_CONCURRENCY = 6;
-
-interface SearchRow {
-  number: number;
-  title: string;
-  url: string;
-  updatedAt?: string;
-  isDraft?: boolean;
-  author?: { login?: string } | null;
-  labels?: { name: string; color?: string }[];
-  repository: { nameWithOwner: string };
-}
 
 async function gh(args: string[]): Promise<string> {
   try {
@@ -26,83 +14,6 @@ async function gh(args: string[]): Promise<string> {
     const stderr = (error as { stderr?: string }).stderr?.trim();
     throw new Error(stderr || `gh ${args.slice(0, 2).join(" ")} failed`);
   }
-}
-
-interface SearchOptions {
-  query: string;
-  labels: readonly string[];
-  author: string | null;
-  base?: string | null;
-  qualifier?: string;
-}
-
-async function search(kind: "pr" | "issue", repos: readonly string[], { query, labels, author, base, qualifier }: SearchOptions): Promise<Item[]> {
-  const fields =
-    kind === "pr"
-      ? "number,title,url,updatedAt,isDraft,author,labels,repository"
-      : "number,title,url,updatedAt,author,labels,repository";
-  const args = ["search", kind === "pr" ? "prs" : "issues"];
-  const text = [query.trim(), kind === "pr" ? (qualifier ?? "") : ""].filter(Boolean).join(" ");
-  if (text) args.push(text);
-  for (const repo of repos) args.push("--repo", repo);
-  for (const label of labels) args.push("--label", label);
-  if (author) args.push("--author", author);
-  if (base && kind === "pr") args.push("--base", base);
-  args.push("--state", "open", "--sort", "updated", "--limit", "100", "--json", fields);
-  const rows = JSON.parse(await gh(args)) as SearchRow[];
-  return rows.map((row) => ({
-    repo: row.repository.nameWithOwner,
-    number: row.number,
-    kind,
-    url: row.url,
-    title: row.title,
-    author: row.author?.login ?? null,
-    updatedAt: row.updatedAt ?? null,
-    isDraft: row.isDraft ?? false,
-    labels: (row.labels ?? []).map((label) => label.name),
-    labelColors: Object.fromEntries((row.labels ?? []).flatMap((label) => (label.color ? [[label.name, label.color]] : []))),
-    state: "open" as const,
-    baseRef: kind === "pr" ? (base ?? null) : null,
-    reviewDecision: null,
-    linkedPrs: [],
-  }));
-}
-
-export async function searchItems(
-  repos: readonly string[],
-  kind: "pr" | "issue" | "all",
-  options: SearchOptions & { bases?: readonly string[]; prStates?: readonly string[] },
-): Promise<Item[]> {
-  const scope = repos.slice(0, MAX_REPOS);
-  if (!scope.length) return [];
-  const bases = options.bases ?? [];
-  const qualifiers = (options.prStates ?? [])
-    .map((state) => PR_STATES.find((candidate) => candidate.value === state)?.query)
-    .filter((query): query is NonNullable<typeof query> => Boolean(query));
-  const prSearches: Promise<Item[]>[] = [];
-  if (kind !== "issue") {
-    for (const base of bases.length ? bases : [null]) {
-      for (const qualifier of qualifiers.length ? qualifiers : [undefined]) {
-        prSearches.push(search("pr", scope, { ...options, base, qualifier }));
-      }
-    }
-  }
-  const issueSearch = kind !== "pr" && !bases.length ? search("issue", scope, options) : Promise.resolve([]);
-  const results = [...(await Promise.all(prSearches)).flat(), ...(await issueSearch)];
-  const seen = new Set<string>();
-  const unique = results.filter((item) => {
-    const key = itemKey(item.repo, item.number);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  const reviews = await prReviews(unique.filter((item) => item.kind === "pr"));
-  return unique
-    .map((item) => {
-      const review = reviews.get(itemKey(item.repo, item.number));
-      return review ? { ...item, reviewDecision: review.reviewDecision, baseRef: item.baseRef ?? review.baseRef, isDraft: review.isDraft } : item;
-    })
-    .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
 }
 
 interface PrReview {
@@ -185,7 +96,7 @@ const LINKED_PRS_QUERY = `query($owner: String!, $name: String!, $number: Int!) 
   }
 }`;
 
-function ghDirect(args: string[]): Promise<string> {
+export function ghDirect(args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile("gh", args, { timeout: 30000, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (error, stdout, stderr) => {
       if (error) reject(new Error(String(stderr || error.message).trim()));
