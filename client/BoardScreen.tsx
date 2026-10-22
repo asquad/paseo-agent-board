@@ -96,7 +96,7 @@ export function BoardScreen({ theme, layout, params, navigation }: PluginScreenP
 
   const workFields: FilterField[] = useMemo(() => {
     const repos = new Map<string, string>();
-    for (const repo of board.repos) if (repo.github) repos.set(repo.github, repo.name);
+    for (const repo of board.repos) if (repo.github && !repo.archived) repos.set(repo.github, repo.name);
     const labels = new Set<string>(view.work.labels);
     const colors: Record<string, string> = {};
     const authors = new Set<string>(view.work.authors);

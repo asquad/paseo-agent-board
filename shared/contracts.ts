@@ -107,6 +107,7 @@ export const RepoSchema = z.object({
   path: z.string(),
   kind: z.enum(["git", "non_git", "directory"]),
   github: z.string().nullable(),
+  archived: z.boolean().default(false),
 });
 export type Repo = z.infer<typeof RepoSchema>;
 

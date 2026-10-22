@@ -137,7 +137,7 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
       {
         key: "repos",
         label: "Репо",
-        options: repos.flatMap((repo) => (repo.github ? [{ value: repo.github, label: repo.name }] : [])),
+        options: repos.flatMap((repo) => (repo.github && !repo.archived ? [{ value: repo.github, label: repo.name }] : [])),
       },
       {
         key: "kinds",
