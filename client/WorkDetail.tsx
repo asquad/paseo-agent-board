@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import {
   approveIntakeRpc,
+  archiveTaskRpc,
   DELIVER_ACTION_ID,
   rejectIntakeItemRpc,
   requestIntakeChangesRpc,
@@ -25,7 +26,7 @@ import { PrBadge } from "./PrBadge";
 import { Picker, type FilterOption } from "./FilterBar";
 import { workStatusColor, type Styles } from "./styles";
 import { AgentSection, Button, DeliverCard, type Navigation } from "./TaskDetail";
-import { useNotes } from "./data";
+import { useCleanupJobs, useNotes } from "./data";
 import { useTodoToggle } from "./view";
 
 interface Props {
@@ -350,6 +351,73 @@ function useDismissToggle(work: WorkItem, allWork: readonly WorkItem[]) {
   });
 }
 
+function liveAgentsIn(work: WorkItem, workspaceId: string): number {
+  return work.tasks.flatMap((task) => [task.agent, ...task.workers]).filter((agent) => agent.workspaceId === workspaceId).length;
+}
+
+function TaskArchive({ work, styles, theme }: { work: WorkItem; styles: Styles; theme: PluginTheme }) {
+  const archive = useRpc(archiveTaskRpc);
+  const client = useQueryClient();
+  const toast = useToast();
+  const jobs = useCleanupJobs();
+  const [confirm, setConfirm] = useState(false);
+  const agentIds = work.tasks.map((task) => task.agent.id);
+  const emptyWorkspaces = work.workspaces.filter((workspace) => liveAgentsIn(work, workspace.id) === 0).map((workspace) => workspace.id);
+  const taskJobs = jobs.filter((job) => agentIds.includes(job.agentId));
+  const active = taskJobs.some((job) => job.state === "cleaning" || job.state === "archiving");
+  const stuck = taskJobs.filter((job) => job.state === "failed" || job.state === "needs-you");
+  const running = work.tasks.some((task) => [task.agent, ...task.workers].some((agent) => agent.status === "running"));
+  const mutation = useMutation({
+    mutationFn: (skipCleanup: boolean) =>
+      archive({ agentIds: skipCleanup ? stuck.map((job) => job.agentId) : agentIds, workspaceIds: emptyWorkspaces, skipCleanup }),
+    onSuccess: (result) => {
+      setConfirm(false);
+      void client.invalidateQueries({ queryKey: ["cleanup-jobs"] });
+      toast.show(
+        result.jobs.length
+          ? `Уборка запущена: агентов ${result.jobs.length}${result.archivedWorkspaces ? `, пустых воркспейсов архивировано: ${result.archivedWorkspaces}` : ""}`
+          : `Архивировано воркспейсов: ${result.archivedWorkspaces}`,
+        { variant: "success" },
+      );
+    },
+    onError: (error) => toast.error((error as Error).message),
+  });
+  if (!agentIds.length && !emptyWorkspaces.length) return null;
+  return (
+    <View style={{ gap: 4 }}>
+      <View style={[styles.headerRow, { flexWrap: "wrap" }]}>
+        <Button
+          styles={styles}
+          theme={theme}
+          icon={confirm ? "AlertTriangle" : "Archive"}
+          label={confirm ? (agentIds.length ? "Уборка и архив задачи?" : "Архивировать воркспейсы?") : "Архивировать задачу"}
+          disabled={mutation.isPending || active || running}
+          onPress={() => (confirm ? mutation.mutate(false) : setConfirm(true))}
+        />
+        {stuck.length ? (
+          <Button
+            styles={styles}
+            theme={theme}
+            icon="ArchiveX"
+            label="Архивировать без cleanup"
+            disabled={mutation.isPending}
+            onPress={() => mutation.mutate(true)}
+          />
+        ) : null}
+      </View>
+      {running ? <Text style={styles.muted}>Агенты ещё работают; архивировать можно после их хода.</Text> : null}
+      {taskJobs.map((job) => (
+        <Text
+          key={job.agentId}
+          style={job.state === "failed" ? styles.error : [styles.muted, job.state === "needs-you" ? { color: theme.colors.statusWarning } : null]}
+        >
+          {work.tasks.find((task) => task.agent.id === job.agentId)?.workspace?.title ?? "Агент"}: {job.message}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 function NoteBox({ itemKey, styles, theme }: { itemKey: string; styles: Styles; theme: PluginTheme }) {
   const notes = useNotes();
   const save = useRpc(setNoteRpc);
@@ -523,6 +591,7 @@ function WorkspaceRow({
   workspace,
   running,
   role,
+  canArchive,
   styles,
   theme,
   navigation,
@@ -530,6 +599,7 @@ function WorkspaceRow({
   workspace: BoardWorkspace;
   running: boolean;
   role: string | null;
+  canArchive: boolean;
   styles: Styles;
   theme: PluginTheme;
   navigation: Navigation | undefined;
@@ -558,14 +628,16 @@ function WorkspaceRow({
       {navigation ? (
         <Button styles={styles} theme={theme} icon="PanelsTopLeft" label="Открыть" onPress={() => navigation.openWorkspace({ workspaceId: workspace.id })} />
       ) : null}
-      <Button
-        styles={styles}
-        theme={theme}
-        icon={confirm ? "AlertTriangle" : "Archive"}
-        label={confirm ? "Точно?" : "Архивировать"}
-        disabled={running || archive.isPending}
-        onPress={() => (confirm ? archive.mutate() : setConfirm(true))}
-      />
+      {canArchive ? (
+        <Button
+          styles={styles}
+          theme={theme}
+          icon={confirm ? "AlertTriangle" : "Archive"}
+          label={confirm ? "Точно?" : "Архивировать"}
+          disabled={running || archive.isPending}
+          onPress={() => (confirm ? archive.mutate() : setConfirm(true))}
+        />
+      ) : null}
     </View>
   );
 }
@@ -643,6 +715,7 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
         <Text style={styles.muted}>отправлено {formatDate(work.sentAt)}</Text>
       </View>
       <LabelList labels={work.labels} colors={work.labelColors} fallback={theme.colors.foregroundMuted} />
+      <TaskArchive work={work} styles={styles} theme={theme} />
       <NoteBox key={work.key} itemKey={work.key} styles={styles} theme={theme} />
       {work.repo && work.number !== null ? (
         <View style={{ gap: 8 }}>
@@ -684,6 +757,7 @@ export function WorkDetail({ item: work, theme, styles, now, showWorkers, action
                 [task.agent, ...task.workers].some((agent) => agent.workspaceId === workspace.id && agent.status === "running"),
               )}
               role={workspaceRole(work, workspace.id)}
+              canArchive={liveAgentsIn(work, workspace.id) === 0}
               styles={styles}
               theme={theme}
               navigation={navigation}

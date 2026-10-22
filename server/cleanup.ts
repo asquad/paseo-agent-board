@@ -86,6 +86,17 @@ export function startCleanup(paseo: PaseoApi, agentId: string, prompt: string | 
   return { job };
 }
 
+export async function archiveTask(
+  paseo: PaseoApi,
+  agentIds: readonly string[],
+  workspaceIds: readonly string[],
+  prompt: string | null,
+) {
+  const started = agentIds.map((agentId) => startCleanup(paseo, agentId, prompt).job);
+  const archived = await archiveEmptyWorkspaces(paseo, workspaceIds);
+  return { jobs: started, archivedWorkspaces: archived.length };
+}
+
 export function cleanupJobs() {
   const now = Date.now();
   for (const [agentId, job] of jobs) {

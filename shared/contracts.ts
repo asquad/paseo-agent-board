@@ -337,6 +337,16 @@ export const startCleanupRpc = defineRpc({
   output: z.object({ job: CleanupJobSchema }),
 });
 
+export const archiveTaskRpc = defineRpc({
+  name: "tasks.archive",
+  input: z.object({
+    agentIds: z.array(z.string()),
+    workspaceIds: z.array(z.string()),
+    skipCleanup: z.boolean().default(false),
+  }),
+  output: z.object({ jobs: z.array(CleanupJobSchema), archivedWorkspaces: z.number().int() }),
+});
+
 export const cleanupJobsRpc = defineRpc({
   name: "agents.cleanup-jobs",
   input: z.object({}),

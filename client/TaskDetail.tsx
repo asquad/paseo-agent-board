@@ -225,6 +225,7 @@ export function AgentSection({
   showWorkers,
   navigation,
   heading,
+  showArchive = false,
 }: {
   task: Task;
   theme: PluginTheme;
@@ -233,6 +234,7 @@ export function AgentSection({
   showWorkers: boolean;
   navigation: Navigation | undefined;
   heading?: string;
+  showArchive?: boolean;
 }) {
   const toast = useToast();
   const client = useQueryClient();
@@ -291,6 +293,8 @@ export function AgentSection({
             onPress={() => navigation.openWorkspace({ workspaceId: agent.workspaceId ?? "" })}
           />
         ) : null}
+        {showArchive ? (
+          <>
         <Button
           styles={styles}
           theme={theme}
@@ -308,6 +312,8 @@ export function AgentSection({
             disabled={archive.isPending}
             onPress={() => archive.mutate(true)}
           />
+        ) : null}
+          </>
         ) : null}
       </View>
       {job ? (
@@ -417,7 +423,7 @@ export function TaskDetail({ task, theme, styles, now, showWorkers, actions, pro
         {task.workspace?.title ?? task.label}
       </Text>
       <TaskActions task={task} actions={actions} profiles={profiles} theme={theme} styles={styles} onStarted={onStarted} />
-      <AgentSection task={task} theme={theme} styles={styles} now={now} showWorkers={showWorkers} navigation={navigation} />
+      <AgentSection task={task} theme={theme} styles={styles} now={now} showWorkers={showWorkers} navigation={navigation} showArchive />
     </ScrollView>
   );
 }

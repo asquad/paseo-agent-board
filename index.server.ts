@@ -11,6 +11,7 @@ import {
   DELIVER_ACTION_ID,
   agentReposRpc,
   cleanupJobsRpc,
+  archiveTaskRpc,
   startCleanupRpc,
   undraftRpc,
   listAssignmentsRpc,
@@ -30,7 +31,7 @@ import {
 } from "./shared/contracts";
 import { agentRepos } from "./server/agentRepos";
 import { listAssignments, setAssignments } from "./server/assignments";
-import { cleanupJobs, startCleanup } from "./server/cleanup";
+import { archiveTask, cleanupJobs, startCleanup } from "./server/cleanup";
 import { approveIntake, rejectIntakeItem, requestIntakeChanges } from "./server/intake";
 import { readPrStatus } from "./server/github";
 import { forgetItem, lookupItems, removeLabel, resolveItem, searchItems } from "./server/items";
@@ -101,6 +102,10 @@ export default function contribute(server: PluginServerContext) {
     return startCleanup(paseo, agentId, skipCleanup || !cleanupPrompt.trim() ? null : cleanupPrompt);
   });
   server.handle(cleanupJobsRpc, () => cleanupJobs());
+  server.handle(archiveTaskRpc, async ({ agentIds, workspaceIds, skipCleanup }, { paseo }) => {
+    const { cleanupPrompt } = await values();
+    return archiveTask(paseo, agentIds, workspaceIds, skipCleanup || !cleanupPrompt.trim() ? null : cleanupPrompt);
+  });
 
   server.handle(listAssignmentsRpc, () => listAssignments());
   server.handle(setAssignmentsRpc, ({ workspaceIds, repos, link }) => setAssignments(workspaceIds, { repos, link }));
