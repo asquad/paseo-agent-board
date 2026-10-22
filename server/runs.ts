@@ -50,6 +50,17 @@ const RunFileSchema = z.object({
   updatedAt: z.string().min(1),
 });
 
+/** Parses JSON; on failure retries with lone backslashes (unescaped Windows paths) doubled. */
+export function parseLenient(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const repaired = text.replace(/\\(?!["\\/bfnrtu])|\\(?=u(?![0-9a-fA-F]{4}))/g, "\\\\");
+    if (repaired === text) throw error;
+    return JSON.parse(repaired);
+  }
+}
+
 export function defaultRunStateDir(): string {
   return join(homedir(), ".paseo-dev-team", "runs");
 }
@@ -71,7 +82,7 @@ export async function readRuns(configuredDir: string) {
       const file = join(dir, name);
       try {
         const info = await stat(file);
-        const raw = JSON.parse((await readFile(file, "utf8")).replace(/^﻿/, ""));
+        const raw = parseLenient((await readFile(file, "utf8")).replace(/^﻿/, ""));
         const parsed = RunFileSchema.safeParse(raw);
         if (!parsed.success) {
           errors.push(`${name}: ${parsed.error.issues[0]?.message ?? "invalid run state"}`);
