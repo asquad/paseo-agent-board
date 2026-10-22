@@ -252,7 +252,7 @@ export const resolveItemRpc = defineRpc({
 
 export const lookupItemsRpc = defineRpc({
   name: "items.lookup",
-  input: z.object({ keys: z.array(z.string()) }),
+  input: z.object({ keys: z.array(z.string()), fresh: z.boolean().default(false) }),
   output: z.object({ items: z.array(ItemSchema), errors: z.array(z.string()) }),
 });
 

@@ -25,6 +25,7 @@ import { LabelList } from "./LabelChip";
 import { PrBadge } from "./PrBadge";
 import { Picker, type FilterOption } from "./FilterBar";
 import { workStatusColor, type Styles } from "./styles";
+import { StatusMark, workMark } from "./StatusMark";
 import { AgentSection, Button, DeliverCard, type Navigation } from "./TaskDetail";
 import { useCleanupJobs, useNotes } from "./data";
 import { useTodoToggle } from "./view";
@@ -288,7 +289,7 @@ function IntakeCard({
               onPress={() => onSelect(child.key)}
               style={[styles.row, { paddingHorizontal: 0 }]}
             >
-              <View style={[styles.dot, { backgroundColor: workStatusColor(theme, child.status) }]} />
+              <StatusMark theme={theme} kind={workMark(child.status)} />
               <Text style={[styles.text, { flex: 1 }]} numberOfLines={1}>
                 {child.title}
               </Text>

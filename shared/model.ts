@@ -126,7 +126,7 @@ function matchRun(agent: BoardAgent, repoName: string, number: number | null, ru
 
 function classify(agent: BoardAgent, run: RunState | null): Pick<Task, "bucket" | "tone" | "statusText"> {
   if (agent.pendingPermissions > 0 || agent.attentionReason === "permission") {
-    return { bucket: "needs", tone: "danger", statusText: "Needs permission" };
+    return { bucket: "needs", tone: "waiting", statusText: "Needs permission" };
   }
   if (agent.status === "error" || agent.attentionReason === "error") {
     return { bucket: "needs", tone: "danger", statusText: agent.lastError ? "Error" : "Failed" };

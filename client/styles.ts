@@ -1,20 +1,10 @@
 import type { PluginTheme } from "@getpaseo/plugin";
 import type { WorkStatus } from "../shared/contracts";
 import type { Tone } from "../shared/model";
+import { markColor, toneMark, workMark } from "./StatusMark";
 
 export function toneColor(theme: PluginTheme, tone: Tone): string {
-  switch (tone) {
-    case "running":
-      return theme.colors.accent;
-    case "danger":
-      return theme.colors.statusDanger;
-    case "waiting":
-      return theme.colors.statusWarning;
-    case "done":
-      return theme.colors.statusSuccess;
-    default:
-      return theme.colors.foregroundMuted;
-  }
+  return markColor(theme, toneMark(tone));
 }
 
 export function makeStyles(theme: PluginTheme, compact: boolean) {
@@ -109,26 +99,6 @@ export function makeStyles(theme: PluginTheme, compact: boolean) {
 
 export type Styles = ReturnType<typeof makeStyles>;
 
-const WAITING_PURPLE = "#8b5cf6";
-const FINISHED_TEAL = "#14b8a6";
-
 export function workStatusColor(theme: PluginTheme, status: WorkStatus): string {
-  switch (status) {
-    case "attention":
-      return theme.colors.statusDanger;
-    case "question":
-      return theme.colors.statusWarning;
-    case "running":
-      return theme.colors.accent;
-    case "finished":
-      return FINISHED_TEAL;
-    case "waiting":
-      return WAITING_PURPLE;
-    case "ready":
-      return theme.colors.statusSuccess;
-    case "closed":
-      return theme.colors.border;
-    default:
-      return theme.colors.foregroundMuted;
-  }
+  return markColor(theme, workMark(status));
 }

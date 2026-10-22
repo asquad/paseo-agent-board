@@ -4,7 +4,8 @@ import { Pressable, Text, View } from "react-native";
 import { formatAge } from "../shared/model";
 import { formatWorkNumbers, type SortColumn, type WorkItem } from "../shared/work";
 import { PrBadge } from "./PrBadge";
-import { workStatusColor, type Styles } from "./styles";
+import { type Styles } from "./styles";
+import { StatusMark, workMark } from "./StatusMark";
 
 interface Props {
   items: readonly WorkItem[];
@@ -64,7 +65,6 @@ function Row({
   now: number;
   compact: boolean;
 }) {
-  const color = workStatusColor(theme, item.status);
   const multiRepo = item.repos.length > 1;
   const reference =
     item.repo && item.number !== null && !multiRepo
@@ -83,7 +83,7 @@ function Row({
     >
       {depth ? <Icon name="CornerDownRight" size={13} color={theme.colors.foregroundMuted} /> : null}
       <View style={{ width: 22, alignItems: "center" }}>
-        <View style={[styles.dot, { backgroundColor: color, width: 10, height: 10, borderRadius: 5 }]} />
+        <StatusMark theme={theme} kind={workMark(item.status)} />
       </View>
       <View style={{ flex: 1, gap: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>

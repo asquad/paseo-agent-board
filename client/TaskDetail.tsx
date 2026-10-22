@@ -9,6 +9,7 @@ import { formatAge, type BoardAgent, type Task } from "../shared/model";
 import { ActionButtons } from "./ActionButtons";
 import { useCleanupJobs, useLatestReport } from "./data";
 import { toneColor, type Styles } from "./styles";
+import { StatusMark, toneMark, type MarkKind } from "./StatusMark";
 
 export interface Navigation {
   openAgent(input: { agentId: string }): void;
@@ -211,10 +212,12 @@ function Report({ agent, styles, theme, now }: { agent: BoardAgent; styles: Styl
   );
 }
 
-function workerColor(theme: PluginTheme, worker: BoardAgent): string {
-  if (worker.status === "running") return theme.colors.accent;
-  if (worker.status === "error" || worker.pendingPermissions > 0) return theme.colors.statusDanger;
-  return theme.colors.foregroundMuted;
+function workerMark(worker: BoardAgent): MarkKind {
+  if (worker.pendingPermissions > 0 || worker.attentionReason === "permission") return "warning";
+  if (worker.status === "error" || worker.attentionReason === "error") return "danger";
+  if (worker.status === "running" || worker.status === "initializing") return "running";
+  if (worker.requiresAttention) return "success";
+  return "done";
 }
 
 export function AgentSection({
@@ -257,7 +260,7 @@ export function AgentSection({
     <View style={{ gap: 10 }}>
       {heading ? (
         <View style={styles.headerRow}>
-          <View style={[styles.dot, { backgroundColor: toneColor(theme, task.tone) }]} />
+          <StatusMark theme={theme} kind={toneMark(task.tone)} />
           <Text style={[styles.strong, { flex: 1 }]} numberOfLines={1}>
             {heading}
           </Text>
@@ -339,7 +342,7 @@ export function AgentSection({
               onPress={() => navigation?.openAgent({ agentId: worker.id })}
               style={styles.row}
             >
-              <View style={[styles.dot, { backgroundColor: workerColor(theme, worker) }]} />
+              <StatusMark theme={theme} kind={workerMark(worker)} />
               <Text style={[styles.text, { flex: 1 }]} numberOfLines={1}>
                 {worker.title ?? worker.id}
               </Text>

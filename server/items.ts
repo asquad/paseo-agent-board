@@ -22,16 +22,16 @@ interface PrReview {
   baseRef: string | null;
 }
 
-const REVIEW_TTL_MS = 2 * 60 * 1000;
+const REVIEW_TTL_MS = 45 * 1000;
 const REVIEW_BATCH = 40;
 const reviewCache = new Map<string, { review: PrReview; at: number }>();
 
-async function prReviews(prs: readonly { repo: string; number: number }[]): Promise<Map<string, PrReview>> {
+async function prReviews(prs: readonly { repo: string; number: number }[], fresh = false): Promise<Map<string, PrReview>> {
   const result = new Map<string, PrReview>();
   const now = Date.now();
   const pending = prs.filter((pr) => {
     const cached = reviewCache.get(itemKey(pr.repo, pr.number));
-    if (cached && now - cached.at < REVIEW_TTL_MS) {
+    if (!fresh && cached && now - cached.at < REVIEW_TTL_MS) {
       result.set(itemKey(pr.repo, pr.number), cached.review);
       return false;
     }
@@ -168,7 +168,7 @@ export function forgetItem(repo: string, number: number) {
   cache.delete(itemKey(repo, number));
 }
 
-export async function lookupItems(keys: readonly string[]) {
+export async function lookupItems(keys: readonly string[], fresh = false) {
   const items: Item[] = [];
   const errors: string[] = [];
   const pending: { repo: string; number: number }[] = [];
@@ -177,7 +177,7 @@ export async function lookupItems(keys: readonly string[]) {
     const match = /^([^#\s]+\/[^#\s]+)#(\d+)$/.exec(key);
     if (!match) continue;
     const cached = cache.get(itemKey(match[1], Number(match[2])));
-    if (cached && now - cached.at < LOOKUP_TTL_MS) items.push(cached.item);
+    if (!fresh && cached && now - cached.at < LOOKUP_TTL_MS) items.push(cached.item);
     else pending.push({ repo: match[1], number: Number(match[2]) });
   }
   let next = 0;
@@ -194,7 +194,15 @@ export async function lookupItems(keys: readonly string[]) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(LOOKUP_CONCURRENCY, pending.length) }, worker));
-  return { items, errors };
+  const open = items.filter((item) => item.kind === "pr" && item.state === "open");
+  const reviews = await prReviews(open, fresh);
+  return {
+    items: items.map((item) => {
+      const review = reviews.get(itemKey(item.repo, item.number));
+      return review && item.kind === "pr" ? { ...item, reviewDecision: review.reviewDecision, isDraft: review.isDraft, baseRef: review.baseRef ?? item.baseRef } : item;
+    }),
+    errors,
+  };
 }
 
 export async function removeLabel(repo: string, number: number, label: string) {

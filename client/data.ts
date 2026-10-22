@@ -107,6 +107,7 @@ export function useBoard() {
   const scanRepos = useRpc(agentReposRpc);
   const listAssignments = useRpc(listAssignmentsRpc);
   const live = useLiveAgents();
+  const freshMeta = useRef(false);
 
   const workspaces = useQuery({
     queryKey: ["workspaces"],
@@ -189,10 +190,14 @@ export function useBoard() {
   );
   const meta = useQuery({
     queryKey: ["meta", metaKeys.join(",")],
-    queryFn: () => lookup({ keys: metaKeys }),
+    queryFn: () => {
+      const fresh = freshMeta.current;
+      freshMeta.current = false;
+      return lookup({ keys: metaKeys, fresh });
+    },
     enabled: metaKeys.length > 0,
     placeholderData: (previous) => previous,
-    refetchInterval: 5 * 60_000,
+    refetchInterval: 60_000,
   });
   const metaMap = useMemo(() => {
     const map = new Map<string, Item>();
@@ -259,6 +264,7 @@ export function useBoard() {
       void repos.refetch();
       void runs.refetch();
       void todos.refetch();
+      freshMeta.current = true;
       void meta.refetch();
     },
   };

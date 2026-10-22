@@ -63,7 +63,7 @@ export interface PrReviewState {
 
 export const STATUS_LABELS: Record<WorkStatus, string> = {
   attention: "Нужно вмешательство",
-  question: "Вопрос к вам",
+  question: "Ждёт вас",
   running: "В работе",
   finished: "Агент закончил",
   waiting: "Ждёт внешнего",
@@ -175,7 +175,7 @@ function agentStatus(
   const agents = draft.tasks.flatMap((task) => [task.agent, ...task.workers]);
   const top = draft.tasks.map((task) => task.agent);
   if (agents.some((agent) => agent.pendingPermissions > 0 || agent.attentionReason === "permission")) {
-    return { status: "attention", statusText: "Ждёт разрешения" };
+    return { status: "question", statusText: "Ждёт разрешения" };
   }
   const failed = top.find((agent) => agent.status === "error" || agent.attentionReason === "error");
   if (failed) return { status: "attention", statusText: failed.lastError ? "Ошибка" : "Остановлено с ошибкой" };

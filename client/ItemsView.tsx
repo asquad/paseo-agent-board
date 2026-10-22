@@ -23,7 +23,8 @@ import { FilterBar, type FilterField } from "./FilterBar";
 import { LabelList, labelColor } from "./LabelChip";
 import { PrBadge } from "./PrBadge";
 import { SortControl } from "./SortControl";
-import { workStatusColor, type Styles } from "./styles";
+import { type Styles } from "./styles";
+import { StatusMark, workMark } from "./StatusMark";
 import { useTodoToggle } from "./view";
 
 interface Props {
@@ -225,7 +226,7 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
               onPress={() => onOpenWork(inWork.key)}
               style={styles.button}
             >
-              <View style={[styles.dot, { backgroundColor: workStatusColor(theme, inWork.status) }]} />
+              <StatusMark theme={theme} kind={workMark(inWork.status)} />
               <Text style={styles.buttonText} numberOfLines={1}>
                 {inWork.todo && !inWork.tasks.length ? "TODO" : "В работе"}
               </Text>

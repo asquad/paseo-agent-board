@@ -82,7 +82,7 @@ export default function contribute(server: PluginServerContext) {
 
   server.handle(resolveItemRpc, ({ reference, defaultRepo }) => resolveItem(reference, defaultRepo));
 
-  server.handle(lookupItemsRpc, ({ keys }) => lookupItems(keys));
+  server.handle(lookupItemsRpc, ({ keys, fresh }) => lookupItems(keys, fresh));
   server.handle(undraftRpc, ({ repo, number, label }) => removeLabel(repo, number, label));
 
   server.handle(runActionRpc, async ({ actionId, item, input }, { paseo }) => {
