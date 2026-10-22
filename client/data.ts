@@ -151,8 +151,7 @@ export function useBoard() {
   const scanTargets = useMemo(
     () =>
       tasks
-        .filter((task) => task.repo?.kind !== "git" || task.number === null)
-        .flatMap((task) => [task.agent, ...task.workers])
+        .flatMap((task) => (task.repo?.kind !== "git" || task.number === null ? [task.agent, ...task.workers] : [task.agent]))
         .map((agent) => ({ id: agent.id, updatedAt: agent.updatedAt })),
     [tasks],
   );
@@ -204,6 +203,10 @@ export function useBoard() {
     () => new Map((scanned.data?.results ?? []).map((result) => [result.id, result.repos])),
     [scanned.data],
   );
+  const agentAsks = useMemo(
+    () => new Set((scanned.data?.results ?? []).filter((result) => result.asks).map((result) => result.id)),
+    [scanned.data],
+  );
   const agentLinkMap = useMemo(
     () => new Map((scanned.data?.results ?? []).map((result) => [result.id, result.links])),
     [scanned.data],
@@ -221,8 +224,9 @@ export function useBoard() {
         agentRepos: agentRepoMap,
         assignments: assignmentMap,
         agentLinks: agentLinkMap,
+        agentAsks,
       }),
-    [tasks, runs.data, todos.data, metaMap, workspaces.data, repos.data, agentRepoMap, assignmentMap, agentLinkMap],
+    [tasks, runs.data, todos.data, metaMap, workspaces.data, repos.data, agentRepoMap, assignmentMap, agentLinkMap, agentAsks],
   );
 
   const errors = [

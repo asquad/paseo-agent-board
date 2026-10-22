@@ -9,6 +9,7 @@ const MAX_LINKS = 10;
 interface Scan {
   repos: { repo: string; score: number }[];
   links: string[];
+  asks: boolean;
 }
 
 const cache = new Map<string, Scan & { updatedAt: string }>();
@@ -54,13 +55,28 @@ export function repoMatcher(repos: readonly Repo[], rootPath: string | null) {
 
 const ITEM_URL = /github\.com\/([\w.-]+\/[\w.-]+)\/(?:issues|pull)\/(\d+)/g;
 
+export function endsWithQuestion(text: string): boolean {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/[*_`>)\]"'»\s]+$/u, "").trim())
+    .filter(Boolean);
+  return /[?？]$/u.test(lines.at(-1) ?? "");
+}
+
 async function scanAgent(paseo: PaseoApi, id: string, match: (text: string) => Set<string>): Promise<Scan> {
   const page = await paseo.agents.ref(id).timeline.refetch({ direction: "tail", limit: TIMELINE_LIMIT, projection: "canonical" });
   const counts = new Map<string, number>();
   const links: string[] = [];
+  let lastMessage = "";
+  let inMessage = false;
   for (const entry of page.entries) {
     for (const repo of match(JSON.stringify(entry.item))) counts.set(repo, (counts.get(repo) ?? 0) + 1);
-    if (entry.item.type !== "assistant_message") continue;
+    if (entry.item.type !== "assistant_message") {
+      if (entry.item.type !== "reasoning") inMessage = false;
+      continue;
+    }
+    lastMessage = inMessage ? lastMessage + entry.item.text : entry.item.text;
+    inMessage = true;
     for (const url of entry.item.text.matchAll(ITEM_URL)) {
       const key = `${url[1]}#${url[2]}`;
       const index = links.indexOf(key);
@@ -71,6 +87,7 @@ async function scanAgent(paseo: PaseoApi, id: string, match: (text: string) => S
   return {
     repos: [...counts].map(([repo, score]) => ({ repo, score })).sort((a, b) => b.score - a.score),
     links: links.reverse().slice(0, MAX_LINKS),
+    asks: endsWithQuestion(lastMessage),
   };
 }
 
@@ -85,7 +102,7 @@ export async function agentRepos(
   const pending = agents.filter((agent) => {
     const cached = cache.get(agent.id);
     if (cached && cached.updatedAt === agent.updatedAt) {
-      results.push({ id: agent.id, repos: cached.repos, links: cached.links });
+      results.push({ id: agent.id, repos: cached.repos, links: cached.links, asks: cached.asks });
       return false;
     }
     return true;
@@ -100,7 +117,7 @@ export async function agentRepos(
         results.push({ id: agent.id, ...found });
       } catch {
         const cached = cache.get(agent.id);
-        results.push({ id: agent.id, repos: cached?.repos ?? [], links: cached?.links ?? [] });
+        results.push({ id: agent.id, repos: cached?.repos ?? [], links: cached?.links ?? [], asks: cached?.asks ?? false });
       }
     }
   }

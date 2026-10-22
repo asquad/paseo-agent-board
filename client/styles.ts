@@ -110,6 +110,7 @@ export function makeStyles(theme: PluginTheme, compact: boolean) {
 export type Styles = ReturnType<typeof makeStyles>;
 
 const WAITING_PURPLE = "#8b5cf6";
+const FINISHED_TEAL = "#14b8a6";
 
 export function workStatusColor(theme: PluginTheme, status: WorkStatus): string {
   switch (status) {
@@ -119,6 +120,8 @@ export function workStatusColor(theme: PluginTheme, status: WorkStatus): string 
       return theme.colors.statusWarning;
     case "running":
       return theme.colors.accent;
+    case "finished":
+      return FINISHED_TEAL;
     case "waiting":
       return WAITING_PURPLE;
     case "ready":

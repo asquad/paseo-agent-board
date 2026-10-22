@@ -58,6 +58,7 @@ export const STATUS_LABELS: Record<WorkStatus, string> = {
   attention: "Нужно вмешательство",
   question: "Вопрос к вам",
   running: "В работе",
+  finished: "Агент закончил",
   waiting: "Ждёт внешнего",
   ready: "Готово",
   idle: "Остановлено",
@@ -69,11 +70,12 @@ const STATUS_ORDER: Record<WorkStatus, number> = {
   attention: 0,
   question: 1,
   running: 2,
-  waiting: 3,
-  ready: 4,
-  idle: 5,
-  todo: 6,
-  closed: 7,
+  finished: 3,
+  waiting: 4,
+  ready: 5,
+  idle: 6,
+  todo: 7,
+  closed: 8,
 };
 
 export function statusRank(status: WorkStatus): number {
@@ -157,7 +159,12 @@ function workspaceKey(workspace: BoardWorkspace, repos: readonly Repo[]): { repo
   return github && github.includes("/") ? { repo: github, number: Number(loose[1]) } : null;
 }
 
-function agentStatus(draft: Draft, meta: Item | null, workspaces: readonly BoardWorkspace[]): { status: WorkStatus; statusText: string } {
+function agentStatus(
+  draft: Draft,
+  meta: Item | null,
+  workspaces: readonly BoardWorkspace[],
+  asks: ReadonlySet<string>,
+): { status: WorkStatus; statusText: string } {
   const agents = draft.tasks.flatMap((task) => [task.agent, ...task.workers]);
   const top = draft.tasks.map((task) => task.agent);
   if (agents.some((agent) => agent.pendingPermissions > 0 || agent.attentionReason === "permission")) {
@@ -180,7 +187,10 @@ function agentStatus(draft: Draft, meta: Item | null, workspaces: readonly Board
   if (run?.state === "blocked") return { status: "waiting", statusText: run.blocker ?? "Ждёт внешнего" };
   if (workspaces.some((workspace) => workspace.status === "needs_input")) return { status: "question", statusText: "Ждёт ввода" };
   if (workspaces.some((workspace) => workspace.status === "failed")) return { status: "attention", statusText: "Ошибка" };
-  if (draft.tasks.length) return { status: "idle", statusText: run?.stage ? `Остановлено: ${run.stage}` : "Агент не работает" };
+  if (draft.tasks.length) {
+    if (draft.tasks.some((task) => asks.has(task.agent.id))) return { status: "question", statusText: "Агент спрашивает" };
+    return { status: "finished", statusText: run?.stage ? `Агент закончил: ${run.stage}` : "Агент закончил" };
+  }
   if (draft.todo && !workspaces.length) return { status: "todo", statusText: "TODO" };
   if (workspaces.length) return { status: "idle", statusText: "Агенты архивированы" };
   return { status: "idle", statusText: "Нет агентов" };
@@ -197,6 +207,7 @@ export interface BuildWorkInput {
   agentRepos: ReadonlyMap<string, readonly { repo: string; score: number }[]>;
   assignments: ReadonlyMap<string, Assignment>;
   agentLinks: ReadonlyMap<string, readonly string[]>;
+  agentAsks?: ReadonlySet<string>;
 }
 
 export function parseLink(link: string | null | undefined): { repo: string; number: number } | null {
@@ -204,7 +215,7 @@ export function parseLink(link: string | null | undefined): { repo: string; numb
   return match ? { repo: match[1], number: Number(match[2]) } : null;
 }
 
-export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPath, agentRepos, assignments, agentLinks }: BuildWorkInput): WorkItem[] {
+export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPath, agentRepos, assignments, agentLinks, agentAsks = new Set() }: BuildWorkInput): WorkItem[] {
   const linkOf = (workspaceId: string | null) => (workspaceId ? parseLink(assignments.get(workspaceId)?.link) : null);
   const root = rootPath ? normalizePath(rootPath) : null;
   const drafts: Draft[] = [];
@@ -299,7 +310,7 @@ export function buildWork({ tasks, runs, todos, meta, workspaces, repos, rootPat
     create({ key: slot.startsWith("agent:") ? slot : `ws:${slot}`, loose: true, repo: null, number: null, kind: "workspace", tasks: slotTasks });
   }
 
-  return group(drafts.map((draft) => finish(draft, meta, workspaces, repos, agentRepos, assignments, agentLinks)));
+  return group(drafts.map((draft) => finish(draft, meta, workspaces, repos, agentRepos, assignments, agentLinks, agentAsks)));
 }
 
 function group(items: WorkItem[]): WorkItem[] {
@@ -422,6 +433,7 @@ function finish(
   agentRepos: BuildWorkInput["agentRepos"],
   assignments: BuildWorkInput["assignments"],
   agentLinks: BuildWorkInput["agentLinks"],
+  agentAsks: ReadonlySet<string>,
 ): WorkItem {
   const childKeys =
     draft.kind !== "scratch"
@@ -507,7 +519,7 @@ function finish(
     relatedNumbers: [],
     phase: draft.kind === "scratch" ? "analysis" : null,
     pending: [],
-    ...agentStatus(draft, statusMeta, workspaces),
+    ...agentStatus(draft, statusMeta, workspaces, agentAsks),
   };
 }
 

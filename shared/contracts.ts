@@ -66,7 +66,7 @@ export const boardSettings = defineSettings({
   },
 });
 
-export const STATUSES = ["attention", "question", "running", "waiting", "ready", "idle", "todo", "closed"] as const;
+export const STATUSES = ["attention", "question", "running", "finished", "waiting", "ready", "idle", "todo", "closed"] as const;
 export type WorkStatus = (typeof STATUSES)[number];
 
 export const FilterSchema = z.object({
@@ -286,7 +286,12 @@ export const agentReposRpc = defineRpc({
   input: z.object({ agents: z.array(z.object({ id: z.string(), updatedAt: z.string() })) }),
   output: z.object({
     results: z.array(
-      z.object({ id: z.string(), repos: z.array(z.object({ repo: z.string(), score: z.number() })), links: z.array(z.string()) }),
+      z.object({
+        id: z.string(),
+        repos: z.array(z.object({ repo: z.string(), score: z.number() })),
+        links: z.array(z.string()),
+        asks: z.boolean().default(false),
+      }),
     ),
   }),
 });
