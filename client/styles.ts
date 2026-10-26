@@ -82,6 +82,7 @@ export function makeStyles(theme: PluginTheme, compact: boolean) {
       borderRadius: 6,
     },
     rowSelected: { backgroundColor: colors.surface2 },
+    rowStripe: { backgroundColor: colors.surface1 },
     dot: { width: 8, height: 8, borderRadius: 4 },
     card: {
       borderWidth: 1,

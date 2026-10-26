@@ -54,10 +54,12 @@ function Row({
   compact,
   depth = 0,
   note,
+  striped = false,
 }: {
   item: WorkItem;
   note?: string;
   depth?: number;
+  striped?: boolean;
   selected: boolean;
   onSelect(key: string): void;
   theme: PluginTheme;
@@ -79,7 +81,7 @@ function Row({
       accessibilityRole="button"
       accessibilityLabel={`${item.title}, ${item.statusText}`}
       onPress={() => onSelect(item.key)}
-      style={[styles.row, depth ? { paddingLeft: 10 + depth * 22 } : null, selected ? styles.rowSelected : null]}
+      style={[styles.row, depth ? { paddingLeft: 10 + depth * 22 } : null, striped ? styles.rowStripe : null, selected ? styles.rowSelected : null]}
     >
       {depth ? <Icon name="CornerDownRight" size={13} color={theme.colors.foregroundMuted} /> : null}
       <View style={{ width: 22, alignItems: "center" }}>
@@ -146,8 +148,8 @@ export function WorkTable({ items, loose, childrenOf, notes, sort, onSort, selec
         <Text style={[styles.strong, { flex: 1 }]}>Без задачи ({loose.length})</Text>
       </Pressable>
       {looseOpen
-        ? loose.map((item) => (
-            <Row key={item.key} item={item} selected={selected === item.key} onSelect={onSelect} theme={theme} styles={styles} now={now} compact={compact} />
+        ? loose.map((item, index) => (
+            <Row key={item.key} item={item} striped={index % 2 === 1} selected={selected === item.key} onSelect={onSelect} theme={theme} styles={styles} now={now} compact={compact} />
           ))
         : null}
     </View>
@@ -160,8 +162,8 @@ export function WorkTable({ items, loose, childrenOf, notes, sort, onSort, selec
       ListHeaderComponent={header}
       ListFooterComponent={footer}
       ListEmptyComponent={<Text style={[styles.muted, { padding: 12 }]}>{loading ? "Загружаю…" : "Под фильтр ничего не попало."}</Text>}
-      renderItem={({ item }) => (
-        <View>
+      renderItem={({ item, index }) => (
+        <View style={[{ borderRadius: 6 }, index % 2 === 1 ? styles.rowStripe : null]}>
           <Row item={item} note={notes.get(item.key)} selected={selected === item.key} onSelect={onSelect} theme={theme} styles={styles} now={now} compact={compact} />
           {(childrenOf.get(item.key) ?? []).map((child) => (
             <Row

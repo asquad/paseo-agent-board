@@ -186,12 +186,12 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
   const deliver = actions.find((action) => action.id === DELIVER_ACTION_ID) ?? null;
   const others = actions.filter((action) => action.id !== DELIVER_ACTION_ID);
 
-  function renderItem(item: Item, pinned = false) {
+  function renderItem(item: Item, pinned = false, striped = false) {
     const key = itemKey(item.repo, item.number);
     const inWork = workByKey.get(key) ?? null;
     const open = expanded?.key === key ? expanded : null;
     return (
-      <View key={key} style={[{ borderRadius: 6 }, open || pinned ? styles.rowSelected : null]}>
+      <View key={key} style={[{ borderRadius: 6 }, striped ? styles.rowStripe : null, open || pinned ? styles.rowSelected : null]}>
         <View style={[styles.row, { flexWrap: compact ? "wrap" : "nowrap" }]}>
           <Icon
             name={item.kind === "pr" ? "GitPullRequest" : "CircleDot"}
@@ -330,7 +330,7 @@ export function ItemsView({ repos, work, actions, profiles, filter, onFilterChan
       <FlatList
         data={list}
         keyExtractor={(item) => itemKey(item.repo, item.number)}
-        renderItem={({ item }) => renderItem(item)}
+        renderItem={({ item, index }) => renderItem(item, false, index % 2 === 1)}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
