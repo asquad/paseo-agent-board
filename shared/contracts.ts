@@ -349,6 +349,7 @@ export const archiveTaskRpc = defineRpc({
   input: z.object({
     agentIds: z.array(z.string()),
     workspaceIds: z.array(z.string()),
+    runIds: z.array(z.string()).default([]),
     skipCleanup: z.boolean().default(false),
   }),
   output: z.object({ jobs: z.array(CleanupJobSchema), archivedWorkspaces: z.number().int() }),

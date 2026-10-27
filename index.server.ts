@@ -107,9 +107,9 @@ export default function contribute(server: PluginServerContext) {
     return startCleanup(paseo, agentId, skipCleanup || !cleanupPrompt.trim() ? null : cleanupPrompt);
   });
   server.handle(cleanupJobsRpc, () => cleanupJobs());
-  server.handle(archiveTaskRpc, async ({ agentIds, workspaceIds, skipCleanup }, { paseo }) => {
-    const { cleanupPrompt } = await values();
-    return archiveTask(paseo, agentIds, workspaceIds, skipCleanup || !cleanupPrompt.trim() ? null : cleanupPrompt);
+  server.handle(archiveTaskRpc, async ({ agentIds, workspaceIds, runIds, skipCleanup }, { paseo }) => {
+    const { cleanupPrompt, runStateDir } = await values();
+    return archiveTask(paseo, agentIds, workspaceIds, skipCleanup || !cleanupPrompt.trim() ? null : cleanupPrompt, runIds, runStateDir);
   });
 
   server.handle(listAssignmentsRpc, () => listAssignments());

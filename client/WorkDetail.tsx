@@ -371,7 +371,12 @@ function TaskArchive({ work, styles, theme }: { work: WorkItem; styles: Styles; 
   const running = work.tasks.some((task) => [task.agent, ...task.workers].some((agent) => agent.status === "running"));
   const mutation = useMutation({
     mutationFn: (skipCleanup: boolean) =>
-      archive({ agentIds: skipCleanup ? stuck.map((job) => job.agentId) : agentIds, workspaceIds: emptyWorkspaces, skipCleanup }),
+      archive({
+        agentIds: skipCleanup ? stuck.map((job) => job.agentId) : agentIds,
+        workspaceIds: emptyWorkspaces,
+        runIds: work.runs.map((run) => run.runId),
+        skipCleanup,
+      }),
     onSuccess: (result) => {
       setConfirm(false);
       void client.invalidateQueries({ queryKey: ["cleanup-jobs"] });

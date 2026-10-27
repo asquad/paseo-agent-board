@@ -1,10 +1,13 @@
 import type { PaseoApi } from "@getpaseo/client";
 import type { CleanupJob } from "../shared/contracts";
+import { archiveRuns } from "./archivedRuns";
+import { readRuns } from "./runs";
 
 const CLEANUP_TIMEOUT_MS = 60 * 60 * 1000;
 const FINISHED_RETENTION_MS = 10 * 60 * 1000;
 
 const jobs = new Map<string, CleanupJob>();
+const pending = new Map<string, Promise<void>>();
 
 function update(agentId: string, patch: Partial<CleanupJob>) {
   const current = jobs.get(agentId);
@@ -82,7 +85,8 @@ export function startCleanup(paseo: PaseoApi, agentId: string, prompt: string | 
   const now = new Date().toISOString();
   const job: CleanupJob = { agentId, state: "cleaning", message: prompt ? "Отправляю cleanup" : "Архивирую", report: null, startedAt: now, updatedAt: now };
   jobs.set(agentId, job);
-  void run(paseo, agentId, prompt);
+  const done = run(paseo, agentId, prompt).finally(() => pending.delete(agentId));
+  pending.set(agentId, done);
   return { job };
 }
 
@@ -91,10 +95,22 @@ export async function archiveTask(
   agentIds: readonly string[],
   workspaceIds: readonly string[],
   prompt: string | null,
+  runIds: readonly string[] = [],
+  runStateDir = "",
 ) {
   const started = agentIds.map((agentId) => startCleanup(paseo, agentId, prompt).job);
   const archived = await archiveEmptyWorkspaces(paseo, workspaceIds);
+  if (runIds.length) void archiveRunsAfter(agentIds, runIds, runStateDir);
   return { jobs: started, archivedWorkspaces: archived.length };
+}
+
+async function archiveRunsAfter(agentIds: readonly string[], runIds: readonly string[], runStateDir: string) {
+  await Promise.all(agentIds.map((agentId) => pending.get(agentId) ?? Promise.resolve()));
+  if (agentIds.some((agentId) => jobs.get(agentId)?.state !== "done")) return;
+  const wanted = new Set(runIds);
+  const { runs } = await readRuns(runStateDir);
+  const current = runs.filter((run) => wanted.has(run.runId)).map((run) => ({ runId: run.runId, updatedAt: run.updatedAt }));
+  if (current.length) await archiveRuns(current);
 }
 
 export function cleanupJobs() {

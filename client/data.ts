@@ -130,7 +130,7 @@ export function useBoard() {
     enabled: revision !== null,
     refetchInterval: 5_000,
   });
-  const archivedRuns = useQuery({ queryKey: ["archived-runs"], queryFn: () => listArchived({}), staleTime: 60_000 });
+  const archivedRuns = useQuery({ queryKey: ["archived-runs"], queryFn: () => listArchived({}), refetchInterval: 10_000 });
   const runs = useMemo(() => {
     const archived = new Map((archivedRuns.data?.runs ?? []).map((entry) => [entry.runId, entry.updatedAt]));
     if (!runFiles.data) return { data: undefined, refetch: runFiles.refetch, error: runFiles.error };
